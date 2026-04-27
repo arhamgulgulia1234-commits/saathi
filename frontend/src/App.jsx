@@ -6,7 +6,7 @@ import { detectCrisis } from './utils/crisis';
 // ─── Constants ────────────────────────────────────────────────────────────────
 let _id = 0;
 const uid = () => `m${++_id}_${Date.now()}`;
-const API = '';
+const API = import.meta.env.VITE_API_URL || '';
 
 const STARTERS = [
   "I've been feeling really low lately",
