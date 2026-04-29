@@ -26,8 +26,8 @@ app.use(helmet({ crossOriginEmbedderPolicy: false }));
 
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(express.json({ limit: '10kb' }));
@@ -154,7 +154,7 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) return res.status(400).json({ error: 'Invalid email or password.' });
-    
+
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) return res.status(400).json({ error: 'Invalid email or password.' });
 
@@ -186,7 +186,7 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
 
     const validMessages = messages.filter(
       m => m && (m.role === 'user' || m.role === 'assistant') &&
-           typeof m.content === 'string' && m.content.trim()
+        typeof m.content === 'string' && m.content.trim()
     );
 
     if (validMessages.length === 0) {
@@ -207,13 +207,13 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
         if (userDoc) {
           const sevenDaysAgo = new Date();
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-          
+
           const recentCrisisEntries = await MoodEntry.countDocuments({
             userId: req.user.userId,
             triggeredCrisis: true,
             createdAt: { $gte: sevenDaysAgo }
           });
-          
+
           if (recentCrisisEntries >= 2 && userDoc.alertLevel !== 'high') {
             userDoc.alertLevel = 'high';
             await userDoc.save();
@@ -277,7 +277,7 @@ app.post('/api/mood/checkin', authenticateToken, async (req, res) => {
   try {
     const { score, note } = req.body;
     if (!score || score < 1 || score > 10) return res.status(400).json({ error: 'Valid score required (1-10)' });
-    
+
     const entry = new MoodEntry({ userId: req.user.userId, score, note });
     await entry.save();
     res.json(entry);
@@ -290,9 +290,9 @@ app.post('/api/chat/end', authenticateToken, async (req, res) => {
   try {
     const { messages } = req.body;
     if (!messages || messages.length === 0) return res.status(400).json({ error: 'No conversation provided' });
-    
+
     const conversationText = messages.map(m => `${m.role}: ${m.content}`).join('\n');
-    
+
     const prompt = `Analyze this conversation from a mental health perspective.
 Return ONLY a valid JSON object matching this schema exactly:
 {
@@ -307,11 +307,11 @@ ${conversationText}`;
     const result = await model.generateContent(prompt);
     let text = result.response.text();
     text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-    
+
     const data = JSON.parse(text);
-    
+
     const isCrisis = detectCrisis(conversationText);
-    
+
     const entry = new MoodEntry({
       userId: req.user.userId,
       score: data.moodScore || 5,
@@ -319,7 +319,7 @@ ${conversationText}`;
       emotions: data.emotions || [],
       triggeredCrisis: isCrisis
     });
-    
+
     await entry.save();
     res.json(entry);
   } catch (err) {
@@ -332,12 +332,12 @@ app.get('/api/mood/history', authenticateToken, async (req, res) => {
   try {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const entries = await MoodEntry.find({ 
+
+    const entries = await MoodEntry.find({
       userId: req.user.userId,
       createdAt: { $gte: thirtyDaysAgo }
     }).sort({ createdAt: 1 });
-    
+
     res.json(entries);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch history' });
@@ -348,17 +348,17 @@ app.get('/api/mood/insights', authenticateToken, async (req, res) => {
   try {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const entries = await MoodEntry.find({ 
+
+    const entries = await MoodEntry.find({
       userId: req.user.userId,
       createdAt: { $gte: thirtyDaysAgo }
     });
-    
+
     if (entries.length === 0) return res.json({ averageMood: 0, trend: 'stable', mostFrequentEmotions: [], totalSessions: 0 });
-    
+
     const totalSessions = entries.length;
     const averageMood = entries.reduce((acc, curr) => acc + curr.score, 0) / totalSessions;
-    
+
     // Trend calculation (compare first half to second half)
     const mid = Math.floor(totalSessions / 2);
     let trend = 'stable';
@@ -368,7 +368,7 @@ app.get('/api/mood/insights', authenticateToken, async (req, res) => {
       if (secondHalfAvg > firstHalfAvg + 0.5) trend = 'improving';
       else if (secondHalfAvg < firstHalfAvg - 0.5) trend = 'declining';
     }
-    
+
     const emotionCounts = {};
     entries.forEach(e => {
       e.emotions.forEach(em => {
@@ -379,7 +379,7 @@ app.get('/api/mood/insights', authenticateToken, async (req, res) => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(e => e[0]);
-      
+
     res.json({
       averageMood: averageMood.toFixed(1),
       trend,
@@ -409,7 +409,7 @@ app.post('/api/journal', authenticateToken, async (req, res) => {
   try {
     const { encryptedContent, moodScore, date } = req.body;
     if (!encryptedContent) return res.status(400).json({ error: 'Content is required' });
-    
+
     // Find entry for this date and update, or create new
     const queryDate = new Date(date || Date.now());
     queryDate.setHours(0, 0, 0, 0);
@@ -489,7 +489,7 @@ app.post('/api/emergency/contact', authenticateToken, async (req, res) => {
       console.log('Mock email sent to:', user.emergencyContact);
       console.log(mailOptions.text);
     }
-    
+
     res.json({ success: true, message: 'Emergency contact notified gently.' });
   } catch (err) {
     console.error('Email error:', err);
