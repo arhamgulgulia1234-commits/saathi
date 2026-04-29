@@ -77,7 +77,7 @@ export default function Onboarding({ onComplete }) {
                   width: '100%',
                   padding: '12px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(185, 165, 232, 0.3)',
+                  border: '1px solid rgba(196, 113, 74, 0.3)',
                   background: 'rgba(0,0,0,0.2)',
                   color: 'white',
                   marginBottom: '16px'

@@ -2,7 +2,7 @@ export default function HandoffModal({ onClose }) {
   return (
     <div className="modal-overlay" role="dialog" aria-labelledby="handoff-title" aria-modal="true">
       <div className="modal-card">
-        <h3 id="handoff-title">Talk to a real person 💜</h3>
+        <h3 id="handoff-title">Talk to a real person 🤎</h3>
         <p className="sub">
           Sometimes words on a screen aren't enough. These are trained, caring humans
           who want to listen — for free.

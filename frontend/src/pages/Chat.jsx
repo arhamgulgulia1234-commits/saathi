@@ -49,7 +49,7 @@ const Bubble = memo(({ msg, onSave }) => {
   return (
     <div className={`message-group ${isUser ? 'user' : 'assistant'}`}>
       {!isUser && (
-        <div className="ai-avatar" aria-hidden="true">🌸</div>
+        <div className="ai-avatar" aria-hidden="true">✨</div>
       )}
       <div className="msg-content">
         <div 
@@ -59,7 +59,7 @@ const Bubble = memo(({ msg, onSave }) => {
         >
           {msg.content}
           {msg.streaming && <span className="streaming-cursor" aria-hidden="true" />}
-          {isSaved && !isUser && <span className="msg-reaction">💜</span>}
+          {isSaved && !isUser && <span className="msg-reaction">🤎</span>}
         </div>
         {!msg.streaming && (
           <span className="message-time">{formatTime(msg.timestamp || new Date())}</span>
@@ -74,7 +74,7 @@ function CrisisBanner({ onDismiss }) {
   return (
     <div className="crisis-banner" role="alert" aria-live="assertive">
       <div className="crisis-text">
-        <span>💜</span>
+        <span>🤎</span>
         <p><strong>You don't have to face this alone.</strong>{' '}A real person is here for you right now.</p>
       </div>
       <div className="crisis-actions">
@@ -89,7 +89,7 @@ function HandoffModal({ onClose }) {
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="modal-card">
-        <h3>Talk to a real person 💜</h3>
+        <h3>Talk to a real person 🤎</h3>
         <p className="sub">Trained, caring humans — free and confidential.</p>
         <div className="helpline-card">
           <p className="name">iCall — India</p>
@@ -312,7 +312,7 @@ export default function Chat() {
       <div className="saathi-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
         <div className="breathing-circle-wrapper" style={{ transform: 'scale(0.5)' }}>
           <div className="breathing-ring" />
-          <div className="breathing-circle inhale"><span style={{ fontSize: 32 }}>🌸</span></div>
+          <div className="breathing-circle inhale"><span style={{ fontSize: 32 }}>✨</span></div>
         </div>
       </div>
     );
@@ -323,7 +323,7 @@ export default function Chat() {
       {/* ── Top Nav ── */}
       <nav className="saathi-nav" id="saathi-nav">
         <div className="nav-brand">
-          <div className="nav-logo" aria-hidden="true">🌸</div>
+          <div className="nav-logo" aria-hidden="true">✨</div>
           <span className="nav-title">Saathi</span>
           <span className="nav-tagline">साथी</span>
         </div>
@@ -401,7 +401,7 @@ export default function Chat() {
             {messages.map(m => <Bubble key={m.id} msg={m} />)}
             {isTyping && (
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '0 16px' }}>
-                <div className="ai-avatar" aria-hidden="true">🌸</div>
+                <div className="ai-avatar" aria-hidden="true">✨</div>
                 <TypingDots />
               </div>
             )}

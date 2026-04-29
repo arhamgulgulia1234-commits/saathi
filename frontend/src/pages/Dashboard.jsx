@@ -124,19 +124,19 @@ export default function Dashboard() {
           <div className="chart-wrapper">
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="date" stroke="#8a80a8" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#8a80a8" fontSize={12} tickLine={false} axisLine={false} domain={[1, 10]} />
+                <XAxis dataKey="date" stroke="#a39586" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#a39586" fontSize={12} tickLine={false} axisLine={false} domain={[1, 10]} />
                 <Tooltip 
-                  contentStyle={{ background: '#1e2840', border: '1px solid rgba(185,165,232,0.2)', borderRadius: '8px' }}
-                  itemStyle={{ color: '#c5b0f5' }}
+                  contentStyle={{ background: '#1E1C1A', border: '1px solid rgba(196,113,74,0.2)', borderRadius: '8px' }}
+                  itemStyle={{ color: '#ebdcc9' }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="score" 
-                  stroke="#9d87d4" 
+                  stroke="#C4714A" 
                   strokeWidth={3} 
-                  dot={{ fill: '#7c68b8', strokeWidth: 2, r: 4 }} 
-                  activeDot={{ r: 6, fill: '#ddd0ff' }}
+                  dot={{ fill: '#8B6914', strokeWidth: 2, r: 4 }} 
+                  activeDot={{ r: 6, fill: '#fae29f' }}
                 />
               </LineChart>
             </ResponsiveContainer>

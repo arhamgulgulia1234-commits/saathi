@@ -29,7 +29,7 @@ export default function App() {
       <div className="saathi-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
         <div className="breathing-circle-wrapper" style={{ transform: 'scale(0.5)' }}>
           <div className="breathing-ring" />
-          <div className="breathing-circle inhale"><span style={{ fontSize: 32 }}>🌸</span></div>
+          <div className="breathing-circle inhale"><span style={{ fontSize: 32 }}>✨</span></div>
         </div>
       </div>
     );

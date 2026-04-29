@@ -2,7 +2,7 @@ export default function CrisisBanner({ onDismiss }) {
   return (
     <div className="crisis-banner" role="alert" aria-live="assertive">
       <div className="crisis-text">
-        <span>💜</span>
+        <span>🤎</span>
         <p>
           <strong>You don't have to face this alone.</strong>{' '}
           A real person is here for you right now.

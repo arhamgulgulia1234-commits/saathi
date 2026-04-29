@@ -47,7 +47,7 @@ export default function AuthPage() {
         transition={{ duration: 0.5 }}
       >
         <div className="auth-header">
-          <div className="auth-logo">🌸</div>
+          <div className="auth-logo">✨</div>
           <h2>Saathi</h2>
           <p>Your safe space.</p>
         </div>
