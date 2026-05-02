@@ -278,11 +278,52 @@ app.post('/api/mood/checkin', authenticateToken, async (req, res) => {
     const { score, note } = req.body;
     if (!score || score < 1 || score > 10) return res.status(400).json({ error: 'Valid score required (1-10)' });
 
-    const entry = new MoodEntry({ userId: req.user.userId, score, note });
+    const hour = new Date().getHours();
+    const period = (hour >= 0 && hour < 12) ? 'morning' : 'evening';
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existing = await MoodEntry.findOne({
+      userId: req.user.userId,
+      period,
+      createdAt: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    if (existing) {
+      const msg = period === 'morning' 
+        ? "You've already shared how you're feeling this morning. Come back this evening."
+        : "You've already shared how you're feeling this evening. Come back tomorrow morning.";
+      return res.status(429).json({ error: msg });
+    }
+
+    const entry = new MoodEntry({ userId: req.user.userId, score, note, period });
     await entry.save();
     res.json(entry);
   } catch (err) {
     res.status(500).json({ error: 'Failed to save check-in' });
+  }
+});
+
+app.get('/api/mood/today', authenticateToken, async (req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const entries = await MoodEntry.find({
+      userId: req.user.userId,
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+      period: { $in: ['morning', 'evening'] }
+    });
+
+    const completedPeriods = entries.map(e => e.period);
+    res.json({ completedPeriods });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch today\'s mood status' });
   }
 });
 

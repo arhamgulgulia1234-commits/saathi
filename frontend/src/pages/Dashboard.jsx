@@ -8,9 +8,19 @@ export default function Dashboard() {
   const [insights, setInsights] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [checkedIn, setCheckedIn] = useState(false);
+  const [completedPeriods, setCompletedPeriods] = useState([]);
 
   const API = import.meta.env.VITE_API_URL || '';
+
+  // Initialize from localStorage to avoid flashing
+  useEffect(() => {
+    if (user) {
+      const cached = JSON.parse(localStorage.getItem(`saathi_checkin_${user.email}`) || 'null');
+      if (cached && cached.date === new Date().toDateString()) {
+        setCompletedPeriods(prev => [...new Set([...prev, cached.period])]);
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     if (isAnonymous) {
@@ -22,12 +32,17 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const [insRes, histRes] = await Promise.all([
+      const [insRes, histRes, todayRes] = await Promise.all([
         fetch(`${API}/api/mood/insights`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API}/api/mood/history`, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(`${API}/api/mood/history`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API}/api/mood/today`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       if (insRes.ok) setInsights(await insRes.json());
       if (histRes.ok) setHistory(await histRes.json());
+      if (todayRes.ok) {
+        const todayData = await todayRes.json();
+        setCompletedPeriods(todayData.completedPeriods || []);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -43,7 +58,12 @@ export default function Dashboard() {
         body: JSON.stringify({ score, note: 'Daily check-in' })
       });
       if (res.ok) {
-        setCheckedIn(true);
+        const data = await res.json();
+        setCompletedPeriods(prev => [...prev, data.period]);
+        localStorage.setItem(`saathi_checkin_${user.email}`, JSON.stringify({
+          date: new Date().toDateString(),
+          period: data.period
+        }));
         fetchData();
       }
     } catch (err) {
@@ -78,6 +98,12 @@ export default function Dashboard() {
     { score: 9, icon: '😊', label: 'Great' }
   ];
 
+  const hour = new Date().getHours();
+  const currentPeriod = (hour >= 0 && hour < 12) ? 'morning' : 'evening';
+  const isCurrentPeriodDone = completedPeriods.includes(currentPeriod);
+  const isBothDone = completedPeriods.includes('morning') && completedPeriods.includes('evening');
+  const hoursToNextPeriod = currentPeriod === 'morning' ? 12 - hour : 24 - hour;
+
   return (
     <motion.div 
       className="dashboard-page"
@@ -90,9 +116,19 @@ export default function Dashboard() {
         <p>Welcome back, {user?.username}.</p>
       </div>
 
-      {!checkedIn && (
+      {isBothDone ? (
+        <div className="checkin-widget" style={{ textAlign: 'center' }}>
+          <h3>You've checked in twice today 🤎</h3>
+          <p style={{ color: 'var(--text-2)' }}>See you tomorrow.</p>
+        </div>
+      ) : isCurrentPeriodDone ? (
+        <div className="checkin-widget" style={{ textAlign: 'center' }}>
+          <h3>{currentPeriod === 'morning' ? 'Morning' : 'Evening'} check-in complete 🤎</h3>
+          <p style={{ color: 'var(--text-2)' }}>Next check-in available in {hoursToNextPeriod} hour{hoursToNextPeriod > 1 ? 's' : ''}.</p>
+        </div>
+      ) : (
         <div className="checkin-widget">
-          <h3>How are you feeling right now?</h3>
+          <h3>How are you feeling this {currentPeriod}?</h3>
           <div className="emoji-row">
             {emojis.map(e => (
               <button key={e.score} onClick={() => handleCheckIn(e.score)} title={e.label}>
@@ -124,19 +160,19 @@ export default function Dashboard() {
           <div className="chart-wrapper">
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="date" stroke="#a39586" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#a39586" fontSize={12} tickLine={false} axisLine={false} domain={[1, 10]} />
+                <XAxis dataKey="date" stroke="#8A7A70" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#8A7A70" fontSize={12} tickLine={false} axisLine={false} domain={[1, 10]} />
                 <Tooltip 
-                  contentStyle={{ background: '#1E1C1A', border: '1px solid rgba(196,113,74,0.2)', borderRadius: '8px' }}
-                  itemStyle={{ color: '#ebdcc9' }}
+                  contentStyle={{ background: '#161210', border: '1px solid #2A2320', borderRadius: '8px' }}
+                  itemStyle={{ color: '#F0E6DC' }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="score" 
-                  stroke="#C4714A" 
+                  stroke="#D4845A" 
                   strokeWidth={3} 
-                  dot={{ fill: '#8B6914', strokeWidth: 2, r: 4 }} 
-                  activeDot={{ r: 6, fill: '#fae29f' }}
+                  dot={{ fill: '#5C3D2E', strokeWidth: 2, r: 4 }} 
+                  activeDot={{ r: 6, fill: '#D4845A' }}
                 />
               </LineChart>
             </ResponsiveContainer>

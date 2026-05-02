@@ -7,29 +7,29 @@
 
 :root {
   --bg-900: #080706;
-  --bg-800: #0F0E0D;
-  --bg-700: #171513;
-  --bg-600: #1E1C1A;
+  --bg-800: #0D0B0A;
+  --bg-700: #161210;
+  --bg-600: #1E1916;
   --bg-500: #2b2824;
 
   --amber-100: #fdf3d1;
-  --amber-200: #fae29f;
+  --amber-200: #8FAF8F;
   --amber-300: #f4c962;
   --amber-400: #eaa630;
-  --terra-500: #C4714A;
+  --terra-500: #D4845A;
   --amber-500: #8B6914;
 
-  --text-1: #fdfaf6;
-  --text-2: #ebdcc9;
-  --text-3: #a39586;
+  --text-1: #F0E6DC;
+  --text-2: #8A7A70;
+  --text-3: #8A7A70;
   --text-4: #6b6156;
 
   --glass: rgba(255,255,255,0.04);
   --glass-b: rgba(255,255,255,0.07);
   --glass-hover: rgba(255,255,255,0.07);
 
-  --bubble-user: var(--amber-500);
-  --bubble-ai: var(--bg-600);
+  --bubble-user: #5C3D2E;
+  --bubble-ai: #1A1614;
   --bubble-border: rgba(196, 113, 74, 0.15);
 
   --r-sm: 10px;
@@ -84,9 +84,9 @@ body.chat-mode {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 55% at 50% -8%, rgba(196,113,74,0.12) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 85% 105%, rgba(139,105,20,0.06) 0%, transparent 55%),
-    radial-gradient(ellipse 40% 40% at 8% 65%, rgba(196,113,74,0.05) 0%, transparent 55%);
+    radial-gradient(ellipse 80% 55% at 50% -8%, rgba(212, 132, 90, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 105%, rgba(92, 61, 46, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 8% 65%, rgba(212, 132, 90, 0.04) 0%, transparent 55%);
   pointer-events: none;
   z-index: 0;
 }
@@ -277,7 +277,7 @@ body.chat-mode {
 
 .saathi-main::-webkit-scrollbar { width: 4px; }
 .saathi-main::-webkit-scrollbar-track { background: transparent; }
-.saathi-main::-webkit-scrollbar-thumb { background: rgba(196,113,74,0.12); border-radius: 2px; }
+.saathi-main::-webkit-scrollbar-thumb { background: rgba(212, 132, 90, 0.08); border-radius: 2px; }
 
 .messages-padding-top { height: 24px; flex-shrink: 0; }
 
@@ -982,7 +982,7 @@ body.chat-mode {
 }
 
 .soft-error {
-  background: rgba(234, 179, 8, 0.1);
+  background: rgba(196, 120, 90, 0.1);
   border-left: 3px solid rgba(234, 179, 8, 0.5);
   padding: 10px 14px;
   border-radius: 4px;
@@ -1694,8 +1694,8 @@ body.chat-mode {
 }
 
 .alert-banner {
-  background: rgba(234, 179, 8, 0.1);
-  border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+  background: rgba(196, 120, 90, 0.1);
+  border-bottom: 1px solid rgba(196, 120, 90, 0.2);
   padding: 12px 24px;
   display: flex;
   justify-content: space-between;
@@ -1706,15 +1706,15 @@ body.chat-mode {
 }
 
 .alert-banner p {
-  color: #fef08a;
+  color: #C4785A;
   font-size: 14px;
   margin: 0;
   line-height: 1.4;
 }
 
 .btn-alert-call {
-  background: #eab308;
-  color: #422006;
+  background: #C4785A;
+  color: #F0E6DC;
   border: none;
   padding: 6px 16px;
   border-radius: var(--r-round);
@@ -1726,7 +1726,7 @@ body.chat-mode {
 }
 
 .btn-alert-call:hover {
-  background: #fde047;
+  background: #D4845A;
 }
 
 @keyframes slideDown {

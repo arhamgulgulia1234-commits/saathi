@@ -28,6 +28,11 @@ const moodEntrySchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  period: {
+    type: String,
+    enum: ['morning', 'evening', 'auto'],
+    default: 'auto',
+  },
   createdAt: {
     type: Date,
     default: Date.now,
