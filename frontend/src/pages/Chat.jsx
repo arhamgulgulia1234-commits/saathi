@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, memo } from 'react';
+import { motion } from 'framer-motion';
 import '../index.css';
 import { encryptMessage } from '../utils/encryption';
 import { detectCrisis } from '../utils/crisis';
@@ -191,6 +192,8 @@ export default function Chat() {
   const [showColdStart, setShowColdStart] = useState(false);
   const coldStartTimer = useRef(null);
   const initialized = useRef(false);
+
+  const hasMessages = messages.length > 0;
 
   // Initialize empty state message
   useEffect(() => {
