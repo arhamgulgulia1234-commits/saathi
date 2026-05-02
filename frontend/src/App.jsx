@@ -8,21 +8,31 @@ import Dashboard from './pages/Dashboard';
 import Journal from './pages/Journal';
 import Profile from './pages/Profile';
 import Onboarding from './components/Onboarding';
+import LandingIntro from './components/LandingIntro';
 
 export default function App() {
   const { user, isAnonymous, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showLandingIntro, setShowLandingIntro] = useState(false);
 
   useEffect(() => {
+    // Check for landing intro before anything else if not logged in
+    if (!user && !isAnonymous && !loading) {
+      const seenLanding = localStorage.getItem('saathi_landing_seen');
+      if (!seenLanding) {
+        setShowLandingIntro(true);
+      }
+    }
+
     if (user && !isAnonymous) {
       const onboarded = localStorage.getItem(`saathi_onboarded_${user.email}`);
       if (!onboarded) {
         setShowOnboarding(true);
       }
     }
-  }, [user, isAnonymous]);
+  }, [user, isAnonymous, loading]);
 
   if (loading) {
     return (
@@ -33,6 +43,10 @@ export default function App() {
         </div>
       </div>
     );
+  }
+
+  if (showLandingIntro) {
+    return <LandingIntro onComplete={() => setShowLandingIntro(false)} />;
   }
 
   if (!user && !isAnonymous) {

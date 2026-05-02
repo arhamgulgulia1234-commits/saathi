@@ -60,6 +60,12 @@ body.chat-mode {
   height: 100dvh;
 }
 
+button {
+  min-height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+}
+
 #root {
   height: 100dvh;
   display: flex;
@@ -542,7 +548,7 @@ body.chat-mode {
 .saathi-input-bar {
   position: relative;
   z-index: 10;
-  padding: 12px 20px 16px;
+  padding: 12px 20px max(16px, env(safe-area-inset-bottom));
   background: rgba(8,12,26,0.7);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -893,6 +899,87 @@ body.chat-mode {
   .saathi-nav { padding: 14px 40px; }
   .saathi-input-bar { padding: 14px 40px 18px; }
   .message-group { padding: 6px 32px; }
+}
+
+/* =============================================
+   LANDING INTRO
+   ============================================= */
+.landing-intro-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-800);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.landing-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+
+.landing-logo {
+  font-size: 48px;
+  margin-bottom: 24px;
+}
+
+.landing-title {
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text-1);
+  letter-spacing: -0.5px;
+}
+
+.landing-tagline {
+  font-size: 20px;
+  color: var(--text-2);
+  line-height: 1.5;
+  margin-bottom: 48px;
+}
+
+.landing-subtitle {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 32px;
+  color: var(--text-1);
+}
+
+.trust-points {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 48px;
+  width: 100%;
+  text-align: left;
+}
+
+.trust-point {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 18px;
+  color: var(--text-2);
+  padding: 16px;
+  background: var(--bg-700);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+}
+
+.trust-point .icon {
+  font-size: 24px;
+}
+
+.landing-btn {
+  width: 100%;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 /* =============================================

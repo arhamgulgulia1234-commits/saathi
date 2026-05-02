@@ -188,7 +188,26 @@ export default function Chat() {
   const abortRef = useRef(null);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
-  const hasMessages = messages.length > 0;
+  const [showColdStart, setShowColdStart] = useState(false);
+  const coldStartTimer = useRef(null);
+  const initialized = useRef(false);
+
+  // Initialize empty state message
+  useEffect(() => {
+    if (!loading && messages.length === 0 && !initialized.current) {
+      initialized.current = true;
+      const greeting = (user && !isAnonymous && user.username)
+        ? `Hey ${user.username}, good to see you again. How are you doing today?`
+        : `Hey, I'm really glad you're here. This is your space — no pressure, no judgment. What's on your mind today?`;
+      
+      setMessages([{
+        id: uid(),
+        role: 'model',
+        content: greeting,
+        timestamp: new Date()
+      }]);
+    }
+  }, [user, isAnonymous, loading, messages.length]);
 
   useEffect(() => {
     if (user && !isAnonymous) {
@@ -232,11 +251,15 @@ export default function Chat() {
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setIsTyping(true);
+    setShowColdStart(false);
+
+    coldStartTimer.current = setTimeout(() => {
+      setShowColdStart(true);
+    }, 3000);
 
     const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
     const assistantId = uid();
     let full = '';
-    let breathingDone = false;
 
     try {
       if (abortRef.current) abortRef.current.abort();
@@ -250,21 +273,27 @@ export default function Chat() {
         signal: ctrl.signal,
       });
 
+      if (res.status === 401) throw new Error('401');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      setIsTyping(false);
-      setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', streaming: true, timestamp: new Date() }]);
-
       const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = '';
+      const decoder = new TextDecoder();
+
+      setMessages(prev => [...prev, { id: assistantId, role: 'model', content: '', timestamp: new Date(), streaming: true }]);
+      setIsTyping(false);
 
       while (true) {
-        const { done, value } = await reader.read();
+        const { value, done } = await reader.read();
         if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() || '';
+
+        // Clear the cold start loader as soon as the first chunk arrives
+        if (coldStartTimer.current) {
+          clearTimeout(coldStartTimer.current);
+          setShowColdStart(false);
+        }
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(l => l.trim() !== '');
 
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
@@ -274,16 +303,17 @@ export default function Chat() {
               if (ev.isCrisis) setShowCrisis(true);
             } else if (ev.type === 'text') {
               full += ev.content;
-              if (!breathingDone && full.includes('[BREATHING_EXERCISE]')) {
-                breathingDone = true;
-                setTimeout(() => setShowBreathing(true), 1200);
-              }
               setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, content: full.replace('[BREATHING_EXERCISE]', '') } : m
+                m.id === assistantId ? { ...m, content: full } : m
               ));
+            } else if (ev.type === 'error') {
+              setMessages(prev => prev.map(m =>
+                m.id === assistantId ? { ...m, content: "Something went wrong on our end — try again in a moment", streaming: false } : m
+              ));
+              return;
             } else if (ev.type === 'done') {
               setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, content: full.replace('[BREATHING_EXERCISE]', ''), streaming: false } : m
+                m.id === assistantId ? { ...m, streaming: false } : m
               ));
             }
           } catch (_) {}
@@ -295,13 +325,19 @@ export default function Chat() {
       setMessages(prev => {
         const filtered = prev.filter(m => m.id !== assistantId);
         return [...filtered, {
-          id: uid(), role: 'assistant',
-          content: "I'm having a little trouble connecting. Give me a moment and try again?",
+          id: uid(), role: 'model',
+          content: err.message === '401' ? "Your session expired — just log in again 🤎" : "Something went wrong on our end — try again in a moment",
           timestamp: new Date(),
         }];
       });
+    } finally {
+      if (coldStartTimer.current) {
+        clearTimeout(coldStartTimer.current);
+        setShowColdStart(false);
+      }
+      abortRef.current = null;
     }
-  }, [messages, isTyping]);
+  }, [messages, isTyping, user, isAnonymous]);
 
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
@@ -400,9 +436,20 @@ export default function Chat() {
             <div className="messages-padding-top" />
             {messages.map(m => <Bubble key={m.id} msg={m} />)}
             {isTyping && (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '0 16px' }}>
-                <div className="ai-avatar" aria-hidden="true">✨</div>
-                <TypingDots />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, padding: '0 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="ai-avatar" aria-hidden="true">✨</div>
+                  <TypingDots />
+                </div>
+                {showColdStart && (
+                  <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    style={{ marginLeft: 38, fontSize: 13, color: 'var(--text-3)' }}
+                  >
+                    Saathi is waking up, just a moment... 🤎
+                  </motion.div>
+                )}
               </div>
             )}
             <div ref={bottomRef} />
