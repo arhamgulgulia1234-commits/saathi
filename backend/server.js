@@ -11,6 +11,7 @@ import nodemailer from 'nodemailer';
 import User from './models/User.js';
 import MoodEntry from './models/MoodEntry.js';
 import Journal from './models/Journal.js';
+import Conversation from './models/Conversation.js';
 
 dotenv.config();
 
@@ -83,6 +84,42 @@ Saathi: 'That's okay. We can just sit here for a bit.'
 
 User: 'nobody gets it'
 Saathi: 'That kind of loneliness is its own kind of heavy. What do you wish someone understood?'`;
+
+// ── Context Prompts ───────────────────────────────────────────────────────────
+function getContextPrompt(context) {
+  const contexts = {
+    love: `The user is dealing with something related to love, relationships, or loneliness. 
+    They may be heartbroken, feeling unwanted, or struggling with connection. 
+    Open with warmth around this theme. Don't assume the details — let them share. 
+    Be especially gentle. This kind of pain feels very personal and shameful for many people.`,
+
+    family: `The user is navigating something difficult with family. 
+    This could be pressure, conflict, feeling misunderstood, or not feeling safe at home. 
+    Many people feel guilty for having negative feelings about family — never make them feel judged for this. 
+    Acknowledge how complicated family pain is before anything else.`,
+
+    career: `The user is stressed about career, studies, or their future. 
+    In India this often comes with enormous family pressure and identity tied to achievement. 
+    They may feel like a failure or feel completely lost. 
+    Never give career advice unless explicitly asked. 
+    First just make them feel like their struggle is completely valid and understandable.`,
+
+    anxiety: `The user is experiencing anxiety, overthinking, or racing thoughts. 
+    They may be in an anxious state right now. 
+    Keep your responses shorter than usual — long messages overwhelm anxious people. 
+    If they seem to be spiraling, gently offer the breathing exercise early. 
+    Ground them in the present moment.`,
+
+    low: `The user is feeling low, empty, or numb without a clear reason. 
+    This is often the hardest thing to explain and people feel stupid for feeling this way. 
+    Never ask them to explain why they feel this way — just sit with them in it first. 
+    Opening line should feel like a warm presence, not a question.`,
+
+    other: `The user will tell you what's on their mind. 
+    Open with a completely open, warm, unhurried invitation to share whatever they want.`
+  };
+  return contexts[context] || contexts.other;
+}
 
 // ── Crisis keyword detection ──────────────────────────────────────────────────
 const CRISIS_KEYWORDS = [
@@ -176,9 +213,44 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 });
 
 // ── Main chat endpoint ────────────────────────────────────────────────────────
+app.post('/api/chat/start', optionalAuthenticateToken, async (req, res) => {
+  try {
+    const { context } = req.body;
+    if (!context) return res.status(400).json({ error: 'Context is required.' });
+
+    // Save conversation to DB
+    const conversation = new Conversation({
+      userId: req.user ? req.user.userId : undefined,
+      context,
+      messages: []
+    });
+    await conversation.save();
+
+    const finalSystemPrompt = SYSTEM_PROMPT + '\n\n' + getContextPrompt(context);
+    const instruction = `Generate a warm, single opening message for someone who selected the context: '${context}'. One to two sentences maximum. No questions yet — just presence.`;
+
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: finalSystemPrompt,
+      generationConfig: {
+        maxOutputTokens: 150,
+        temperature: 0.7,
+      },
+    });
+
+    const result = await model.generateContent(instruction);
+    const message = result.response.text().trim();
+
+    res.json({ conversationId: conversation._id, message });
+  } catch (err) {
+    console.error('Chat start error:', err);
+    res.status(500).json({ error: 'Failed to start chat session.' });
+  }
+});
+
 app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) => {
   try {
-    const { messages } = req.body;
+    const { messages, context } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'Messages are required.' });
@@ -237,10 +309,12 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
 
     res.write(`data: ${JSON.stringify({ type: 'meta', isCrisis })}\n\n`);
 
+    const finalSystemPrompt = context ? SYSTEM_PROMPT + '\n\n' + getContextPrompt(context) : SYSTEM_PROMPT;
+
     // ── Gemini call ──────────────────────────────────────────────────────────
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
-      systemInstruction: SYSTEM_PROMPT,
+      systemInstruction: finalSystemPrompt,
       generationConfig: {
         maxOutputTokens: 512,
         temperature: 0.85,

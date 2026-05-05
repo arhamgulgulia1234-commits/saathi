@@ -176,6 +176,7 @@ function BreathingWidget({ onClose }) {
 
 // ─── Main Chat Component ────────────────────────────────────────────────────────
 import { useAuth } from '../context/AuthContext';
+import ContextSelector from '../components/ContextSelector';
 
 export default function Chat() {
   const { user, isAnonymous, loading } = useAuth();
@@ -192,25 +193,48 @@ export default function Chat() {
   const [showColdStart, setShowColdStart] = useState(false);
   const coldStartTimer = useRef(null);
   const initialized = useRef(false);
+  const [context, setContext] = useState(null);
+  const [startingChat, setStartingChat] = useState(false);
 
   const hasMessages = messages.length > 0;
 
-  // Initialize empty state message
-  useEffect(() => {
-    if (!loading && messages.length === 0 && !initialized.current) {
-      initialized.current = true;
-      const greeting = (user && !isAnonymous && user.username)
-        ? `Hey ${user.username}, good to see you again. How are you doing today?`
-        : `Hey, I'm really glad you're here. This is your space — no pressure, no judgment. What's on your mind today?`;
-      
+  const handleContextSelect = async (selectedContext) => {
+    setStartingChat(true);
+    setContext(selectedContext);
+    
+    try {
+      const token = localStorage.getItem('saathi_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${API}/api/chat/start`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ context: selectedContext })
+      });
+
+      if (!res.ok) throw new Error('Failed to start chat');
+      const data = await res.json();
+
       setMessages([{
         id: uid(),
         role: 'model',
-        content: greeting,
+        content: data.message,
         timestamp: new Date()
       }]);
+    } catch (err) {
+      console.error(err);
+      // Fallback if the API fails
+      setMessages([{
+        id: uid(),
+        role: 'model',
+        content: "Hey. Whatever's on your mind — this is your space. No pressure, no judgment.",
+        timestamp: new Date()
+      }]);
+    } finally {
+      setStartingChat(false);
     }
-  }, [user, isAnonymous, loading, messages.length]);
+  };
 
   useEffect(() => {
     if (user && !isAnonymous) {
@@ -271,8 +295,8 @@ export default function Chat() {
 
       const res = await fetch(`${API}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history }),
+        headers: { 'Content-Type': 'application/json', ...(localStorage.getItem('saathi_token') ? { 'Authorization': `Bearer ${localStorage.getItem('saathi_token')}` } : {}) },
+        body: JSON.stringify({ messages: history, context }),
         signal: ctrl.signal,
       });
 
@@ -393,40 +417,7 @@ export default function Chat() {
       {/* ── Main Area ── */}
       <main className="saathi-main" id="saathi-main">
         {!hasMessages ? (
-          /* Welcome state — shown before first message */
-          <div className="welcome-screen">
-            <div className="welcome-glow" aria-hidden="true" />
-            <div className="welcome-emoji">🌿</div>
-            <h1 className="welcome-heading">
-              Whatever you're carrying right now —<br />
-              <em>you don't have to carry it alone.</em>
-            </h1>
-            <p className="welcome-sub">
-              Saathi listens without judgment. No sign-up. No history saved.
-              Just a warm presence, whenever you need it.
-            </p>
-            <div className="welcome-features">
-              {FEATURES.map(f => (
-                <div key={f.label} className="feat-pill">
-                  <span>{f.icon}</span>
-                  <span>{f.label}</span>
-                </div>
-              ))}
-            </div>
-            <p className="starter-label">Start with something, or just say hi —</p>
-            <div className="starter-chips">
-              {STARTERS.map((s, i) => (
-                <button
-                  key={i}
-                  className="starter-chip"
-                  id={`starter-${i}`}
-                  onClick={() => sendMessage(s)}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+          <ContextSelector onSelect={handleContextSelect} loading={startingChat} />
         ) : (
           /* Message list */
           <div
