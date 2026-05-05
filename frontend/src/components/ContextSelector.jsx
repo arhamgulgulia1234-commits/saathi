@@ -13,6 +13,11 @@ const CONTEXTS = [
 export default function ContextSelector({ onSelect, loading }) {
   const [selected, setSelected] = useState(null);
 
+  const handleSelect = (id) => {
+    setSelected(id);
+    onSelect(id);
+  };
+
   return (
     <div className="context-selector">
       <motion.div 
@@ -39,7 +44,7 @@ export default function ContextSelector({ onSelect, loading }) {
           <button
             key={ctx.id}
             className={`context-card ${selected === ctx.id ? 'selected' : ''}`}
-            onClick={() => setSelected(ctx.id)}
+            onClick={() => handleSelect(ctx.id)}
             disabled={loading}
           >
             <div className="context-emoji">{ctx.emoji}</div>
@@ -47,26 +52,14 @@ export default function ContextSelector({ onSelect, loading }) {
               <span className="context-title">{ctx.title}</span>
               <span className="context-desc">{ctx.desc}</span>
             </div>
+            {loading && selected === ctx.id && (
+              <div className="context-loading">
+                <span className="spinner"></span>
+              </div>
+            )}
           </button>
         ))}
       </motion.div>
-
-      {selected && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="context-footer"
-        >
-          <button 
-            className="btn-auth-main" 
-            style={{ marginTop: '32px', minWidth: '200px' }}
-            onClick={() => onSelect(selected)}
-            disabled={loading}
-          >
-            {loading ? 'Just a moment...' : 'Start talking'}
-          </button>
-        </motion.div>
-      )}
     </div>
   );
 }

@@ -385,7 +385,12 @@ export default function Chat() {
     <div className="saathi-page chat-container">
       {/* ── Top Nav ── */}
       <nav className="saathi-nav" id="saathi-nav">
-        <div className="nav-brand">
+        <div 
+          className="nav-brand" 
+          onClick={() => window.location.href = '/'} 
+          style={{ cursor: 'pointer' }}
+          title="Return to Home"
+        >
           <div className="nav-logo" aria-hidden="true">✨</div>
           <span className="nav-title">Saathi</span>
           <span className="nav-tagline">साथी</span>
