@@ -1005,7 +1005,12 @@ button {
   width: 100%;
 }
 
-@media (max-width: 600px) {
+@media (max-height: 800px), (max-width: 600px) {
+  .context-selector {
+    justify-content: flex-start;
+    padding-top: 60px;
+  }
+  
   .context-grid {
     grid-template-columns: 1fr;
   }
