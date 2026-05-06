@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
@@ -39,11 +39,8 @@ const chatLimiter = rateLimit({
   message: { error: 'Too many messages. Take a breath and try again in a moment.' },
 });
 
-// ── Gemini setup ──────────────────────────────────────────────────────────────
-// Use v1 (stable) instead of v1beta for better model availability
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY, {
-  apiVersion: 'v1',
-});
+// ── Groq setup ──────────────────────────────────────────────────────────────
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const SYSTEM_PROMPT = `You are Saathi, a warm and emotionally present companion for people carrying emotional pain, loneliness, anxiety, or depression. You are not a therapist. You are the friend who picks up at 3am without judgment.
 
@@ -375,27 +372,19 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
         console.error('Failed to track crisis escalation:', e);
       }
     }
-    // Convert to Gemini history format (all except the last user message)
-    const history = validMessages.slice(0, -1).map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }));
-
     const finalSystemPrompt = context ? SYSTEM_PROMPT + '\n\n' + getContextPrompt(context) : SYSTEM_PROMPT;
 
-    // ── Gemini call ──────────────────────────────────────────────────────────
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      systemInstruction: finalSystemPrompt,
-      generationConfig: {
-        maxOutputTokens: 1024,
-        temperature: 0.85,
-      },
+    // ── Groq call ──────────────────────────────────────────────────────────
+    const completion = await groq.chat.completions.create({
+      model: 'llama3-8b-8192',
+      messages: [
+        { role: 'system', content: finalSystemPrompt },
+        ...validMessages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
+      ],
+      max_tokens: 1024,
+      temperature: 0.85
     });
-
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessage(lastMsg.content);
-    const fullText = result.response.text();
+    const fullText = completion.choices[0].message.content;
 
     res.json({ message: fullText, isCrisis });
 
@@ -490,9 +479,11 @@ Return ONLY a valid JSON object matching this schema exactly:
 Conversation:
 ${conversationText}`;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent(prompt);
-    let text = result.response.text();
+    const completion = await groq.chat.completions.create({
+      model: 'llama3-8b-8192',
+      messages: [{ role: 'user', content: prompt }]
+    });
+    let text = completion.choices[0].message.content;
     text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
 
     const data = JSON.parse(text);
@@ -583,9 +574,11 @@ app.get('/api/mood/insights', authenticateToken, async (req, res) => {
 app.get('/api/journal/prompt', authenticateToken, async (req, res) => {
   try {
     const promptInstructions = "Generate one gentle, open-ended journal prompt for someone processing difficult emotions. One sentence. Warm and non-clinical. Do not include quotes. E.g. What felt heavy today?";
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent(promptInstructions);
-    const promptText = result.response.text().trim().replace(/^"|"$/g, '');
+    const completion = await groq.chat.completions.create({
+      model: 'llama3-8b-8192',
+      messages: [{ role: 'user', content: promptInstructions }]
+    });
+    const promptText = completion.choices[0].message.content.trim().replace(/^"|"$/g, '');
     res.json({ prompt: promptText });
   } catch (err) {
     res.json({ prompt: "What felt heavy today?" });
