@@ -213,37 +213,30 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 });
 
 // ── Main chat endpoint ────────────────────────────────────────────────────────
-app.post('/api/chat/start', optionalAuthenticateToken, async (req, res) => {
+app.post('/api/opening', optionalAuthenticateToken, async (req, res) => {
   try {
     const { context } = req.body;
-    if (!context) return res.status(400).json({ error: 'Context is required.' });
 
     // Save conversation to DB
     const conversation = new Conversation({
       userId: req.user ? req.user.userId : undefined,
-      context,
+      context: context || 'other',
       messages: []
     });
     await conversation.save();
 
-    const finalSystemPrompt = SYSTEM_PROMPT + '\n\n' + getContextPrompt(context);
-    const instruction = `Generate a warm, single opening message for someone who selected the context: '${context}'. One to two sentences maximum. No questions yet — just presence.`;
+    const openings = {
+      love: "Hey. Matters of the heart are some of the heaviest things to carry. I'm right here.",
+      family: "Hey. Family stuff can be so complicated — and exhausting. I'm glad you're here.",
+      career: "Hey. Feeling lost or pressured about your future is more common than anyone admits. Take your time.",
+      anxiety: "Hey. I'm here. Breathe. There's no rush at all.",
+      low: "Hey. You don't need a reason to feel this way. I'm just glad you showed up.",
+      other: "Hey. Whatever's on your mind — this is your space. No pressure, no judgment."
+    };
 
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      systemInstruction: finalSystemPrompt,
-      generationConfig: {
-        maxOutputTokens: 150,
-        temperature: 0.7,
-      },
-    });
-
-    const result = await model.generateContent(instruction);
-    const message = result.response.text().trim();
-
-    res.json({ conversationId: conversation._id, message });
+    res.json({ conversationId: conversation._id, message: openings[context] || openings.other });
   } catch (err) {
-    console.error('Chat start error:', err);
+    console.error('Opening error:', err);
     res.status(500).json({ error: 'Failed to start chat session.' });
   }
 });
@@ -316,7 +309,7 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
       model: 'gemini-2.5-flash',
       systemInstruction: finalSystemPrompt,
       generationConfig: {
-        maxOutputTokens: 512,
+        maxOutputTokens: 300,
         temperature: 0.85,
       },
     });
@@ -367,7 +360,7 @@ app.post('/api/mood/checkin', authenticateToken, async (req, res) => {
     });
 
     if (existing) {
-      const msg = period === 'morning' 
+      const msg = period === 'morning'
         ? "You've already shared how you're feeling this morning. Come back this evening."
         : "You've already shared how you're feeling this evening. Come back tomorrow morning.";
       return res.status(429).json({ error: msg });

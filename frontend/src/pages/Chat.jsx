@@ -207,7 +207,7 @@ export default function Chat() {
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`${API}/api/chat/start`, {
+      const res = await fetch(`${API}/api/opening`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ context: selectedContext })
@@ -267,16 +267,23 @@ export default function Chat() {
     if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 140) + 'px'; }
   };
 
-  const sendMessage = useCallback(async (text) => {
+  const sendMessage = useCallback(async (text, isRetry = false, existingAssistantId = null, existingFull = '') => {
     const trimmed = text.trim();
-    if (!trimmed || isTyping) return;
+    if (!trimmed || (isTyping && !isRetry)) return;
 
-    if (detectCrisis(trimmed)) setShowCrisis(true);
+    if (!isRetry && detectCrisis(trimmed)) setShowCrisis(true);
 
-    const userMsg = { id: uid(), role: 'user', content: trimmed, timestamp: new Date() };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    let userMsg;
+    if (!isRetry) {
+      userMsg = { id: uid(), role: 'user', content: trimmed, timestamp: new Date() };
+      setMessages(prev => [...prev, userMsg]);
+      setInput('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    } else {
+      // If retry, the user message is already in the history
+      userMsg = messages[messages.length - 1]; // This is a bit unsafe, but we build history below carefully
+    }
+
     setIsTyping(true);
     setShowColdStart(false);
 
@@ -284,9 +291,18 @@ export default function Chat() {
       setShowColdStart(true);
     }, 3000);
 
-    const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
-    const assistantId = uid();
-    let full = '';
+    // Build history. If retry, the user message is already the last one, and the assistant message is also there.
+    // Wait, if retry, the assistant message is currently in `messages`. We should exclude the current incomplete assistant message from history.
+    let history;
+    if (isRetry) {
+      history = messages.filter(m => m.id !== existingAssistantId).map(m => ({ role: m.role, content: m.content }));
+    } else {
+      history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
+    }
+
+    const assistantId = existingAssistantId || uid();
+    let full = existingFull;
+    let receivedDone = false;
 
     try {
       if (abortRef.current) abortRef.current.abort();
@@ -306,14 +322,15 @@ export default function Chat() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
 
-      setMessages(prev => [...prev, { id: assistantId, role: 'model', content: '', timestamp: new Date(), streaming: true }]);
+      if (!isRetry) {
+        setMessages(prev => [...prev, { id: assistantId, role: 'model', content: '', timestamp: new Date(), streaming: true }]);
+      }
       setIsTyping(false);
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        // Clear the cold start loader as soon as the first chunk arrives
         if (coldStartTimer.current) {
           clearTimeout(coldStartTimer.current);
           setShowColdStart(false);
@@ -334,11 +351,9 @@ export default function Chat() {
                 m.id === assistantId ? { ...m, content: full } : m
               ));
             } else if (ev.type === 'error') {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, content: "Something went wrong on our end — try again in a moment", streaming: false } : m
-              ));
-              return;
+              throw new Error('Stream error');
             } else if (ev.type === 'done') {
+              receivedDone = true;
               setMessages(prev => prev.map(m =>
                 m.id === assistantId ? { ...m, streaming: false } : m
               ));
@@ -346,17 +361,42 @@ export default function Chat() {
           } catch (_) {}
         }
       }
+
+      if (!receivedDone) {
+        throw new Error('Abrupt disconnect');
+      }
+
     } catch (err) {
       if (err.name === 'AbortError') return;
       setIsTyping(false);
-      setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== assistantId);
-        return [...filtered, {
-          id: uid(), role: 'model',
-          content: err.message === '401' ? "Your session expired — just log in again 🤎" : "Something went wrong on our end — try again in a moment",
-          timestamp: new Date(),
-        }];
-      });
+      
+      if (err.message === '401') {
+        setMessages(prev => {
+          const filtered = prev.filter(m => m.id !== assistantId);
+          return [...filtered, {
+            id: uid(), role: 'model',
+            content: "Your session expired — just log in again 🤎",
+            timestamp: new Date(),
+          }];
+        });
+      } else {
+        // Cutoff or network error
+        if (!isRetry) {
+          const cutoffNotice = "\n\n*My response got cut off — sorry about that. Here's what I was saying...*\n\n";
+          const newFull = full ? full + cutoffNotice : "*My response got cut off — sorry about that. Here's what I was saying...*\n\n";
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, content: newFull, streaming: true } : m
+          ));
+          // Retry automatically once
+          return sendMessage(text, true, assistantId, newFull);
+        } else {
+          // Failed again
+          const failNotice = full ? full + "\n\n*Having a little trouble right now. Try sending your message again 💜*" : "*Having a little trouble right now. Try sending your message again 💜*";
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, content: failNotice, streaming: false } : m
+          ));
+        }
+      }
     } finally {
       if (coldStartTimer.current) {
         clearTimeout(coldStartTimer.current);
@@ -364,7 +404,7 @@ export default function Chat() {
       }
       abortRef.current = null;
     }
-  }, [messages, isTyping, user, isAnonymous]);
+  }, [messages, isTyping, user, isAnonymous, context]);
 
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
