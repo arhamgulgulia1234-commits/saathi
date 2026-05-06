@@ -263,6 +263,13 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  // Auto-focus input
+  useEffect(() => {
+    if (!isTyping) {
+      textareaRef.current?.focus();
+    }
+  }, [messages, isTyping]);
+
   // Auto-resize textarea
   const resize = () => {
     const ta = textareaRef.current;
@@ -279,6 +286,7 @@ export default function Chat() {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    setTimeout(() => textareaRef.current?.focus(), 100);
 
     setIsTyping(true);
     setShowColdStart(false);
