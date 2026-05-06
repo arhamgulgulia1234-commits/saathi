@@ -376,7 +376,7 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
 
     // ── Groq call ──────────────────────────────────────────────────────────
     const completion = await groq.chat.completions.create({
-      model: 'llama3-8b-8192',
+      model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: finalSystemPrompt },
         ...validMessages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
@@ -480,7 +480,7 @@ Conversation:
 ${conversationText}`;
 
     const completion = await groq.chat.completions.create({
-      model: 'llama3-8b-8192',
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }]
     });
     let text = completion.choices[0].message.content;
@@ -575,7 +575,7 @@ app.get('/api/journal/prompt', authenticateToken, async (req, res) => {
   try {
     const promptInstructions = "Generate one gentle, open-ended journal prompt for someone processing difficult emotions. One sentence. Warm and non-clinical. Do not include quotes. E.g. What felt heavy today?";
     const completion = await groq.chat.completions.create({
-      model: 'llama3-8b-8192',
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: promptInstructions }]
     });
     const promptText = completion.choices[0].message.content.trim().replace(/^"|"$/g, '');
