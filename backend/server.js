@@ -364,14 +364,6 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
       parts: [{ text: m.content }],
     }));
 
-    // ── SSE setup ────────────────────────────────────────────────────────────
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-
-    res.write(`data: ${JSON.stringify({ type: 'meta', isCrisis })}\n\n`);
-
     const finalSystemPrompt = context ? SYSTEM_PROMPT + '\n\n' + getContextPrompt(context) : SYSTEM_PROMPT;
 
     // ── Gemini call ──────────────────────────────────────────────────────────
@@ -379,31 +371,21 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
       model: 'gemini-2.5-flash',
       systemInstruction: finalSystemPrompt,
       generationConfig: {
-        maxOutputTokens: 300,
+        maxOutputTokens: 1024,
         temperature: 0.85,
       },
     });
 
     const chat = model.startChat({ history });
-    const result = await chat.sendMessageStream(lastMsg.content);
+    const result = await chat.sendMessage(lastMsg.content);
+    const fullText = result.response.text();
 
-    for await (const chunk of result.stream) {
-      const text = chunk.text();
-      if (text) {
-        res.write(`data: ${JSON.stringify({ type: 'text', content: text })}\n\n`);
-      }
-    }
-
-    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-    res.end();
+    res.json({ message: fullText, isCrisis });
 
   } catch (err) {
     console.error('Chat error:', err.message || err);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Something went wrong. Please try again.' });
-    } else {
-      res.write(`data: ${JSON.stringify({ type: 'error', message: 'Connection interrupted.' })}\n\n`);
-      res.end();
     }
   }
 });
