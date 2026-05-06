@@ -164,6 +164,50 @@ function getContextPrompt(context) {
   return contexts[context] || contexts.other;
 }
 
+const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-pro'];
+
+async function getWorkingModel(systemInstruction) {
+  for (const modelName of MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction,
+        generationConfig: {
+          maxOutputTokens: 1024,
+          temperature: 0.85,
+        },
+      });
+      return { model, modelName };
+    } catch (e) {
+      console.log(`Model ${modelName} unavailable, trying next...`);
+      continue;
+    }
+  }
+  throw new Error('No available model found');
+}
+
+const responseCache = new Map();
+const CACHE_TTL = 60 * 1000; // 1 minute
+
+function getCached(key) {
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL) {
+    responseCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(key, data) {
+  responseCache.set(key, { data, timestamp: Date.now() });
+  // keep cache small — max 100 entries
+  if (responseCache.size > 100) {
+    const firstKey = responseCache.keys().next().value;
+    responseCache.delete(firstKey);
+  }
+}
+
 // ── Crisis keyword detection ──────────────────────────────────────────────────
 const CRISIS_KEYWORDS = [
   'suicide', 'suicidal', 'kill myself', 'end my life', 'end it all',
