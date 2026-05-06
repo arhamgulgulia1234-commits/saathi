@@ -48,7 +48,12 @@ const Bubble = memo(({ msg, onSave }) => {
   };
 
   return (
-    <div className={`message-group ${isUser ? 'user' : 'assistant'}`}>
+    <motion.div 
+      className={`message-group ${isUser ? 'user' : 'assistant'}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       {!isUser && (
         <div className="ai-avatar" aria-hidden="true">✨</div>
       )}
@@ -59,14 +64,11 @@ const Bubble = memo(({ msg, onSave }) => {
           title={!isUser ? "Tap to save this moment" : ""}
         >
           {msg.content}
-          {msg.streaming && <span className="streaming-cursor" aria-hidden="true" />}
           {isSaved && !isUser && <span className="msg-reaction">🤎</span>}
         </div>
-        {!msg.streaming && (
-          <span className="message-time">{formatTime(msg.timestamp || new Date())}</span>
-        )}
+        <span className="message-time">{formatTime(msg.timestamp || new Date())}</span>
       </div>
-    </div>
+    </motion.div>
   );
 });
 Bubble.displayName = 'Bubble';
@@ -267,22 +269,16 @@ export default function Chat() {
     if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 140) + 'px'; }
   };
 
-  const sendMessage = useCallback(async (text, isRetry = false, existingAssistantId = null, existingFull = '') => {
+  const sendMessage = useCallback(async (text) => {
     const trimmed = text.trim();
-    if (!trimmed || (isTyping && !isRetry)) return;
+    if (!trimmed || isTyping) return;
 
-    if (!isRetry && detectCrisis(trimmed)) setShowCrisis(true);
+    if (detectCrisis(trimmed)) setShowCrisis(true);
 
-    let userMsg;
-    if (!isRetry) {
-      userMsg = { id: uid(), role: 'user', content: trimmed, timestamp: new Date() };
-      setMessages(prev => [...prev, userMsg]);
-      setInput('');
-      if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    } else {
-      // If retry, the user message is already in the history
-      userMsg = messages[messages.length - 1]; // This is a bit unsafe, but we build history below carefully
-    }
+    const userMsg = { id: uid(), role: 'user', content: trimmed, timestamp: new Date() };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
     setIsTyping(true);
     setShowColdStart(false);
@@ -291,112 +287,78 @@ export default function Chat() {
       setShowColdStart(true);
     }, 3000);
 
-    // Build history. If retry, the user message is already the last one, and the assistant message is also there.
-    // Wait, if retry, the assistant message is currently in `messages`. We should exclude the current incomplete assistant message from history.
-    let history;
-    if (isRetry) {
-      history = messages.filter(m => m.id !== existingAssistantId).map(m => ({ role: m.role, content: m.content }));
-    } else {
-      history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
-    }
+    const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
+    const assistantId = uid();
 
-    const assistantId = existingAssistantId || uid();
-    let full = existingFull;
-    let receivedDone = false;
+    async function sendMessageWithRetry(payload, signal, retries = 2) {
+      for (let i = 0; i <= retries; i++) {
+        try {
+          const res = await fetch(`${API}/api/chat`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json', 
+              ...(localStorage.getItem('saathi_token') ? { 'Authorization': `Bearer ${localStorage.getItem('saathi_token')}` } : {}) 
+            },
+            body: JSON.stringify(payload),
+            signal
+          });
+          
+          if (res.status === 401) throw new Error('401');
+
+          if (res.status === 429) {
+            if (i < retries) {
+              await new Promise(r => setTimeout(r, 3000));
+              continue;
+            } else {
+              throw new Error('429');
+            }
+          }
+
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || 'Unknown error');
+          return data;
+        } catch (err) {
+          if (err.name === 'AbortError') throw err;
+          if (err.message === '401') throw err;
+          if (i === retries) throw err;
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+    }
 
     try {
       if (abortRef.current) abortRef.current.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
 
-      const res = await fetch(`${API}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(localStorage.getItem('saathi_token') ? { 'Authorization': `Bearer ${localStorage.getItem('saathi_token')}` } : {}) },
-        body: JSON.stringify({ messages: history, context }),
-        signal: ctrl.signal,
-      });
+      const data = await sendMessageWithRetry({ messages: history, context }, ctrl.signal);
+      
+      if (data.isCrisis) setShowCrisis(true);
 
-      if (res.status === 401) throw new Error('401');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-
-      if (!isRetry) {
-        setMessages(prev => [...prev, { id: assistantId, role: 'model', content: '', timestamp: new Date(), streaming: true }]);
-      }
       setIsTyping(false);
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        if (coldStartTimer.current) {
-          clearTimeout(coldStartTimer.current);
-          setShowColdStart(false);
-        }
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(l => l.trim() !== '');
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          try {
-            const ev = JSON.parse(line.slice(6));
-            if (ev.type === 'meta') {
-              if (ev.isCrisis) setShowCrisis(true);
-            } else if (ev.type === 'text') {
-              full += ev.content;
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, content: full } : m
-              ));
-            } else if (ev.type === 'error') {
-              throw new Error('Stream error');
-            } else if (ev.type === 'done') {
-              receivedDone = true;
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, streaming: false } : m
-              ));
-            }
-          } catch (_) {}
-        }
-      }
-
-      if (!receivedDone) {
-        throw new Error('Abrupt disconnect');
-      }
+      setMessages(prev => [...prev, {
+        id: assistantId,
+        role: 'model',
+        content: data.message,
+        timestamp: new Date()
+      }]);
 
     } catch (err) {
       if (err.name === 'AbortError') return;
       setIsTyping(false);
       
+      let errorMessage = "Having a little trouble right now. Try sending your message again 💜";
       if (err.message === '401') {
-        setMessages(prev => {
-          const filtered = prev.filter(m => m.id !== assistantId);
-          return [...filtered, {
-            id: uid(), role: 'model',
-            content: "Your session expired — just log in again 🤎",
-            timestamp: new Date(),
-          }];
-        });
-      } else {
-        // Cutoff or network error
-        if (!isRetry) {
-          const cutoffNotice = "\n\n*My response got cut off — sorry about that. Here's what I was saying...*\n\n";
-          const newFull = full ? full + cutoffNotice : "*My response got cut off — sorry about that. Here's what I was saying...*\n\n";
-          setMessages(prev => prev.map(m =>
-            m.id === assistantId ? { ...m, content: newFull, streaming: true } : m
-          ));
-          // Retry automatically once
-          return sendMessage(text, true, assistantId, newFull);
-        } else {
-          // Failed again
-          const failNotice = full ? full + "\n\n*Having a little trouble right now. Try sending your message again 💜*" : "*Having a little trouble right now. Try sending your message again 💜*";
-          setMessages(prev => prev.map(m =>
-            m.id === assistantId ? { ...m, content: failNotice, streaming: false } : m
-          ));
-        }
+        errorMessage = "Your session expired — just log in again 🤎";
+      } else if (err.message === '429' || (err.message && err.message.includes('breathe'))) {
+        errorMessage = "Saathi needs a moment to breathe. Try again in 30 seconds 💜";
       }
+
+      setMessages(prev => [...prev, {
+        id: uid(), role: 'model',
+        content: errorMessage,
+        timestamp: new Date()
+      }]);
     } finally {
       if (coldStartTimer.current) {
         clearTimeout(coldStartTimer.current);
