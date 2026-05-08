@@ -120,11 +120,6 @@ export default function App() {
           );
         })}
       </nav>
-
-      {/* Footer */}
-      <div className="app-footer">
-        <a href="/terms" className="footer-terms-link">Terms & Privacy</a>
-      </div>
     </div>
   );
 }

@@ -1569,16 +1569,13 @@ button {
     flex-direction: column;
     justify-content: center;
     border-top: none;
-    border-right: none;
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
     padding: 0;
     gap: 32px;
   }
   .app-container {
     flex-direction: row;
-    padding-left: 0;
+    padding-left: 80px;
   }
 }
 
@@ -2216,26 +2213,8 @@ button {
 }
 
 /* ─────────────────────────────────────────────
-   APP FOOTER (in-app terms link)
+   APP FOOTER (removed)
 ────────────────────────────────────────────── */
-
-.app-footer {
-  text-align: center;
-  padding: 6px 0 10px;
-  background: var(--bg-900);
-}
-
-.footer-terms-link {
-  font-size: 11px;
-  color: var(--text-4);
-  text-decoration: none;
-  letter-spacing: 0.3px;
-  transition: color 0.2s;
-}
-
-.footer-terms-link:hover {
-  color: var(--text-2);
-}
 
 /* ─────────────────────────────────────────────
    AUTH FOOTER LINK
