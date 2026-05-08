@@ -115,6 +115,11 @@ export default function AuthPage() {
           <button type="submit" className="btn-auth-main" disabled={loading}>
             {loading ? 'Just a moment...' : (isLogin ? 'Welcome back' : 'Create my safe space')}
           </button>
+
+          <p className="auth-consent-text">
+            By continuing, you agree to our{' '}
+            <a href="/terms" className="auth-consent-link">Terms & Privacy Policy</a>.
+          </p>
         </form>
 
         <div className="auth-toggle">
@@ -139,9 +144,10 @@ export default function AuthPage() {
           Continue anonymously
         </button>
 
-        <div className="auth-footer-links">
-          <a href="/terms" className="auth-terms-link">Terms & Privacy</a>
-        </div>
+        <p className="auth-consent-text" style={{ marginTop: 12 }}>
+          By continuing, you agree to our{' '}
+          <a href="/terms" className="auth-consent-link">Terms & Privacy Policy</a>.
+        </p>
       </motion.div>
     </div>
   );

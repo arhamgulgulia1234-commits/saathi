@@ -2137,3 +2137,22 @@ button {
   color: var(--text-2);
 }
 
+.auth-consent-text {
+  font-size: 11px;
+  color: var(--text-4);
+  text-align: center;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.auth-consent-link {
+  color: var(--text-3);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s;
+}
+
+.auth-consent-link:hover {
+  color: var(--amber-300);
+}
+
