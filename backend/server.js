@@ -12,6 +12,8 @@ import User from './models/User.js';
 import MoodEntry from './models/MoodEntry.js';
 import Journal from './models/Journal.js';
 import Conversation from './models/Conversation.js';
+import Message from './models/Message.js';
+import { randomUUID } from 'crypto';
 
 dotenv.config();
 
@@ -385,6 +387,50 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
       temperature: 0.85
     });
     const fullText = completion.choices[0].message.content;
+
+    // ── Persist messages if user is logged in and memoryEnabled ──────────────
+    if (req.user) {
+      try {
+        const userDoc = await User.findById(req.user.userId).select('consent consentComplete');
+        const memoryEnabled = userDoc?.consent?.memoryEnabled !== false; // default true if not set
+
+        if (memoryEnabled) {
+          // conversationId: use one from req body, or generate fresh
+          const conversationId = req.body.conversationId || randomUUID();
+
+          // Upsert conversation record
+          await Conversation.findOneAndUpdate(
+            { conversationId },
+            {
+              $setOnInsert: { userId: req.user.userId, context: context || 'other', startedAt: new Date() },
+              $inc: { messageCount: 2 },
+            },
+            { upsert: true, new: true }
+          );
+
+          // Save the last user message + Saathi's reply
+          await Message.insertMany([
+            {
+              userId: req.user.userId,
+              role: 'user',
+              content: lastMsg.content,
+              conversationId,
+            },
+            {
+              userId: req.user.userId,
+              role: 'assistant',
+              content: fullText,
+              conversationId,
+            },
+          ]);
+
+          return res.json({ message: fullText, isCrisis, conversationId });
+        }
+      } catch (storageErr) {
+        // Non-fatal — log and continue without storing
+        console.error('Message storage error:', storageErr.message);
+      }
+    }
 
     res.json({ message: fullText, isCrisis });
 

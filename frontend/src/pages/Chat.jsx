@@ -197,6 +197,7 @@ export default function Chat() {
   const initialized = useRef(false);
   const [context, setContext] = useState(null);
   const [startingChat, setStartingChat] = useState(false);
+  const conversationIdRef = useRef(null); // persists within a chat session
 
   const hasMessages = messages.length > 0;
 
@@ -339,9 +340,15 @@ export default function Chat() {
       const ctrl = new AbortController();
       abortRef.current = ctrl;
 
-      const data = await sendMessageWithRetry({ messages: history, context }, ctrl.signal);
+      const data = await sendMessageWithRetry(
+        { messages: history, context, conversationId: conversationIdRef.current },
+        ctrl.signal
+      );
       
       if (data.isCrisis) setShowCrisis(true);
+
+      // Store the conversationId returned from backend for future messages
+      if (data.conversationId) conversationIdRef.current = data.conversationId;
 
       setIsTyping(false);
       setMessages(prev => [...prev, {
