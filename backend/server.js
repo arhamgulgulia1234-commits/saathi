@@ -221,6 +221,35 @@ function detectCrisis(text) {
   return CRISIS_KEYWORDS.some(k => lower.includes(k));
 }
 
+// ── Memory-aware system prompt ────────────────────────────────────────────────
+async function buildPersonalizedPrompt(userId, context) {
+  const basePrompt = context ? SYSTEM_PROMPT + '\n\n' + getContextPrompt(context) : SYSTEM_PROMPT;
+  if (!userId) return basePrompt; // anonymous user — no memory
+
+  try {
+    const user = await User.findById(userId).select('memory username');
+    if (!user?.memory?.lastConversationSummary) return basePrompt;
+
+    const { memory, username } = user;
+    const memoryContext = `
+MEMORY OF THIS USER — use this naturally, never dump it all at once:
+- Their name: ${username || 'unknown'}
+- What they shared last time: ${memory.lastConversationSummary}
+- Things they have mentioned: ${memory.importantThings?.filter(Boolean).join(', ') || 'nothing yet'}
+- Topics that come up for them: ${memory.keyTopics?.filter(Boolean).join(', ') || 'none yet'}
+- How they usually feel: ${memory.emotionalState || 'unknown'}
+
+Reference this memory the way a good friend would — naturally, warmly, only when relevant.
+Never say "last time you told me" — just show you remember.
+Example: if they mentioned exams before, you might say "how did those exams end up going?" without explaining why you know about them.`;
+
+    return basePrompt + '\n\n' + memoryContext;
+  } catch (err) {
+    console.error('Memory fetch error:', err.message);
+    return basePrompt; // safe fallback
+  }
+}
+
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.json({ status: 'Saathi is here for you 💜', model: 'gemini-1.5-flash' });
@@ -375,7 +404,11 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
         console.error('Failed to track crisis escalation:', e);
       }
     }
-    const finalSystemPrompt = context ? SYSTEM_PROMPT + '\n\n' + getContextPrompt(context) : SYSTEM_PROMPT;
+    // Build personalized prompt (includes memory for logged-in users)
+    const finalSystemPrompt = await buildPersonalizedPrompt(
+      req.user?.userId || null,
+      context
+    );
 
     // ── Groq call ──────────────────────────────────────────────────────────
     const completion = await groq.chat.completions.create({
