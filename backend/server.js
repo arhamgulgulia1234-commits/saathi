@@ -229,7 +229,8 @@ app.get('/health', (req, res) => {
 // ── Auth routes & Middleware ──────────────────────────────────────────────────
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  // Also accept token in body for sendBeacon calls that can't set headers
+  const token = (authHeader && authHeader.split(' ')[1]) || req.body?.token;
   if (!token) return res.status(401).json({ error: 'Access denied' });
 
   jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret', (err, user) => {
@@ -510,44 +511,88 @@ app.get('/api/mood/today', authenticateToken, async (req, res) => {
 
 app.post('/api/chat/end', authenticateToken, async (req, res) => {
   try {
-    const { messages } = req.body;
+    const { messages, conversationId } = req.body;
     if (!messages || messages.length === 0) return res.status(400).json({ error: 'No conversation provided' });
 
     const conversationText = messages.map(m => `${m.role}: ${m.content}`).join('\n');
+    const isCrisis = detectCrisis(conversationText);
 
-    const prompt = `Analyze this conversation from a mental health perspective.
-Return ONLY a valid JSON object matching this schema exactly:
+    const summaryPrompt = `Analyze this mental health support conversation and extract the following as JSON only, no other text:
 {
-  "moodScore": Number (1-10, 1 being severe distress/crisis, 10 being great),
-  "summary": String (one sentence summarizing their state),
-  "emotions": Array of Strings (up to 3 primary emotions detected)
+  "summary": "2-3 sentence summary of what the person shared and how they were feeling",
+  "keyTopics": ["topic1", "topic2", "topic3"],
+  "emotionalState": "one word: anxious/sad/angry/lonely/hopeful/overwhelmed/numb",
+  "moodScore": 5,
+  "needsFollowUp": false,
+  "importantThings": ["specific thing they shared that Saathi should remember"],
+  "emotions": ["emotion1", "emotion2"]
 }
+
 Conversation:
-${conversationText}`;
+${conversationText}
+
+Rules: Never include names, emails, or any identifying information in the output. Summarize emotions and topics only. moodScore must be 1-10 (1 = severe distress, 10 = great). needsFollowUp is true if the person seemed to be in ongoing pain or crisis.`;
 
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: summaryPrompt }]
     });
+
     let text = completion.choices[0].message.content;
-    text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
-    const data = JSON.parse(text);
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (parseErr) {
+      console.error('Summary parse error:', parseErr.message, '\nRaw:', text);
+      // Fallback minimal data — don't crash
+      data = { summary: '', keyTopics: [], emotionalState: 'unknown', moodScore: 5, needsFollowUp: false, importantThings: [], emotions: [] };
+    }
 
-    const isCrisis = detectCrisis(conversationText);
+    const { summary, keyTopics, emotionalState, moodScore, needsFollowUp, importantThings, emotions } = data;
 
+    // ── 1. Update Conversation record ────────────────────────────────────────
+    if (conversationId) {
+      await Conversation.findOneAndUpdate(
+        { conversationId },
+        {
+          summary:        summary || '',
+          keyTopics:      keyTopics || [],
+          emotionalState: emotionalState || '',
+          moodScore:      moodScore || 5,
+          endedAt:        new Date(),
+        }
+      );
+    }
+
+    // ── 2. Save MoodEntry ─────────────────────────────────────────────────────
     const entry = new MoodEntry({
-      userId: req.user.userId,
-      score: data.moodScore || 5,
-      conversationSummary: data.summary || '',
-      emotions: data.emotions || [],
-      triggeredCrisis: isCrisis
+      userId:              req.user.userId,
+      score:               moodScore || 5,
+      conversationSummary: summary || '',
+      emotions:            emotions || keyTopics || [],
+      triggeredCrisis:     isCrisis,
+    });
+    await entry.save();
+
+    // ── 3. Update rolling User memory ────────────────────────────────────────
+    await User.findByIdAndUpdate(req.user.userId, {
+      'memory.lastConversationSummary': summary || '',
+      'memory.keyTopics':               keyTopics || [],
+      'memory.emotionalState':          emotionalState || '',
+      'memory.lastSeen':                new Date(),
+      $push: {
+        'memory.importantThings': {
+          $each:  importantThings || [],
+          $slice: -20,   // keep only most recent 20 items
+        }
+      }
     });
 
-    await entry.save();
-    res.json(entry);
+    res.json({ success: true, entry, needsFollowUp: needsFollowUp || false });
   } catch (err) {
-    console.error('Mood summarization error:', err);
+    console.error('Conversation end error:', err);
     res.status(500).json({ error: 'Failed to summarize session' });
   }
 });

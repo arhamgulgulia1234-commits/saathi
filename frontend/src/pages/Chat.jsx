@@ -198,6 +198,8 @@ export default function Chat() {
   const [context, setContext] = useState(null);
   const [startingChat, setStartingChat] = useState(false);
   const conversationIdRef = useRef(null); // persists within a chat session
+  const inactivityTimerRef = useRef(null); // 30-min inactivity trigger
+  const INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
 
   const hasMessages = messages.length > 0;
 
@@ -258,6 +260,48 @@ export default function Chat() {
     document.body.classList.remove('website-mode');
     return () => document.body.classList.remove('chat-mode');
   }, []);
+
+  // ── End conversation helper ───────────────────────────────────────────────
+  const endConversation = useCallback(() => {
+    if (!user || isAnonymous) return;
+    if (!messages || messages.length === 0) return;
+    const token = localStorage.getItem('saathi_token');
+    if (!token) return;
+    // sendBeacon can't send headers — so include token in body as fallback
+    const payload = JSON.stringify({
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      conversationId: conversationIdRef.current,
+      token,
+    });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(`${API}/api/chat/end`, new Blob([payload], { type: 'application/json' }));
+    } else {
+      fetch(`${API}/api/chat/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: payload,
+        keepalive: true,
+      });
+    }
+  }, [messages, user, isAnonymous]);
+
+  // ── Trigger on page close / tab switch ───────────────────────────────────
+  useEffect(() => {
+    const handleUnload = () => endConversation();
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [endConversation]);
+
+  // ── 30-minute inactivity timer ───────────────────────────────────────────
+  useEffect(() => {
+    if (!messages.length) return;
+    clearTimeout(inactivityTimerRef.current);
+    inactivityTimerRef.current = setTimeout(() => {
+      endConversation();
+      conversationIdRef.current = null; // reset so next message starts a new session
+    }, INACTIVITY_MS);
+    return () => clearTimeout(inactivityTimerRef.current);
+  }, [messages, endConversation]);
 
   // Auto-scroll to bottom
   useEffect(() => {

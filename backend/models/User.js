@@ -42,6 +42,14 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // Rolling cross-session memory
+  memory: {
+    lastConversationSummary: { type: String, default: '' },
+    keyTopics:               [String],
+    emotionalState:          { type: String, default: '' },
+    lastSeen:                { type: Date },
+    importantThings:         [String],
+  },
   alertLevel: {
     type: String,
     enum: ['normal', 'high'],
