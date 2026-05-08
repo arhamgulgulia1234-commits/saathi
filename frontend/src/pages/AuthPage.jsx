@@ -138,6 +138,10 @@ export default function AuthPage() {
         >
           Continue anonymously
         </button>
+
+        <div className="auth-footer-links">
+          <a href="/terms" className="auth-terms-link">Terms & Privacy</a>
+        </div>
       </motion.div>
     </div>
   );

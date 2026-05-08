@@ -7,6 +7,7 @@ import Chat from './pages/Chat';
 import Dashboard from './pages/Dashboard';
 import Journal from './pages/Journal';
 import Profile from './pages/Profile';
+import Terms from './pages/Terms';
 import Onboarding from './components/Onboarding';
 import LandingIntro from './components/LandingIntro';
 
@@ -50,7 +51,14 @@ export default function App() {
   }
 
   if (!user && !isAnonymous) {
-    return <AuthPage />;
+    return (
+      <>
+        <Routes>
+          <Route path="/terms" element={<Terms />} />
+          <Route path="*" element={<AuthPage />} />
+        </Routes>
+      </>
+    );
   }
 
   const tabs = [
@@ -69,6 +77,7 @@ export default function App() {
           <Route path="/mood" element={<Dashboard />} />
           <Route path="/journal" element={<Journal />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/terms" element={<Terms />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -90,6 +99,11 @@ export default function App() {
           );
         })}
       </nav>
+
+      {/* Footer */}
+      <div className="app-footer">
+        <a href="/terms" className="footer-terms-link">Terms & Privacy</a>
+      </div>
     </div>
   );
 }
