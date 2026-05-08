@@ -817,6 +817,64 @@ app.get('/api/user/consent', authenticateToken, async (req, res) => {
   }
 });
 
+// Update consent toggles (from Profile page — can be changed anytime)
+app.patch('/api/user/consent', authenticateToken, async (req, res) => {
+  try {
+    const { memoryEnabled, trainingEnabled, ageConfirmed } = req.body;
+    const update = {};
+
+    if (memoryEnabled !== undefined)   update['consent.memoryEnabled']   = Boolean(memoryEnabled);
+    if (trainingEnabled !== undefined) update['consent.trainingEnabled'] = Boolean(trainingEnabled);
+    if (ageConfirmed !== undefined)    update['consent.ageConfirmed']    = Boolean(ageConfirmed);
+    update['consentToDataUse'] = Boolean(trainingEnabled ?? false); // keep legacy in sync
+
+    await User.findByIdAndUpdate(req.user.userId, { $set: update });
+
+    // If training consent revoked, mark ALL their past conversations as excluded
+    if (trainingEnabled === false) {
+      await Conversation.updateMany(
+        { userId: req.user.userId },
+        { $set: { excludeFromTraining: true } }
+      );
+    }
+
+    // If training consent granted, un-exclude future conversations (past stays excluded for safety)
+    // We intentionally do NOT un-exclude past conversations when re-enabling
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Consent update error:', err);
+    res.status(500).json({ error: 'Failed to update consent.' });
+  }
+});
+
+// Delete account — wipe everything
+app.delete('/api/user/account', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Get all conversationIds for this user so we can delete messages too
+    const userConversations = await Conversation.find(
+      { userId }, { conversationId: 1 }
+    ).lean();
+    const convIds = userConversations.map(c => c.conversationId);
+
+    await Promise.all([
+      Message.deleteMany({ userId }),
+      Message.deleteMany({ conversationId: { $in: convIds } }),
+      Conversation.deleteMany({ userId }),
+      MoodEntry.deleteMany({ userId }),
+      Journal.deleteMany({ userId }),
+      User.findByIdAndDelete(userId),
+    ]);
+
+    res.json({ message: "Everything is gone. We don't keep anything. Take care of yourself 💜" });
+  } catch (err) {
+    console.error('Account deletion error:', err);
+    res.status(500).json({ error: 'Failed to delete account.' });
+  }
+});
+
 app.post('/api/emergency/contact', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
@@ -902,9 +960,9 @@ app.get('/api/admin/training-data', authenticateAdmin, async (req, res) => {
 
     const userIds = consentedUsers.map(u => u._id);
 
-    // 2. Get all conversations for those users
+    // 2. Get all conversations for those users (respecting opt-out)
     const conversations = await Conversation.find(
-      { userId: { $in: userIds } },
+      { userId: { $in: userIds }, excludeFromTraining: { $ne: true } },
       { conversationId: 1, context: 1 }
     ).lean();
 

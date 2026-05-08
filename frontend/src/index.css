@@ -1810,8 +1810,127 @@ button {
   transition: var(--ease);
 }
 
-.btn-danger:hover {
+.btn-danger:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Profile Consent Section ─────────────────────────────────────────────── */
+.profile-section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.profile-section-header-row h3 {
+  margin-bottom: 0;
+}
+
+.consent-saved-badge {
+  font-size: 13px;
+  color: var(--amber-300);
+  background: rgba(217, 119, 87, 0.1);
+  padding: 4px 10px;
+  border-radius: var(--r-round);
+}
+
+.profile-consent-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.profile-consent-item {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--r-md);
+  padding: 16px;
+}
+
+.consent-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.consent-item-left {
+  display: flex;
+  gap: 12px;
+}
+
+.consent-item-emoji {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.consent-item-label-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.consent-item-label {
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.consent-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--r-round);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-recommended {
+  background: rgba(217, 119, 87, 0.15);
+  color: var(--amber-200);
+}
+
+.badge-optional {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-3);
+}
+
+.badge-required {
+  background: rgba(167, 139, 250, 0.15); /* light purple */
+  color: #c4b5fd;
+}
+
+.consent-item-desc {
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Profile Delete Account ──────────────────────────────────────────────── */
+.profile-danger-zone {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.03) 0%, transparent 100%);
+}
+
+.delete-confirm-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--r-md);
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.delete-confirm-label {
+  font-size: 14px;
+  color: #fca5a5;
+  margin-bottom: 12px;
 }
 
 .btn-logout {
