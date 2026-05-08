@@ -641,6 +641,50 @@ app.get('/api/user/alert-level', authenticateToken, async (req, res) => {
   }
 });
 
+// ── Consent ───────────────────────────────────────────────────────────────────
+
+app.post('/api/user/consent', authenticateToken, async (req, res) => {
+  try {
+    const { memoryEnabled, trainingEnabled, ageConfirmed } = req.body;
+    if (ageConfirmed === undefined || memoryEnabled === undefined || trainingEnabled === undefined) {
+      return res.status(400).json({ error: 'All consent fields are required.' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      {
+        consent: {
+          memoryEnabled:   Boolean(memoryEnabled),
+          trainingEnabled: Boolean(trainingEnabled),
+          ageConfirmed:    Boolean(ageConfirmed),
+          consentDate:     new Date(),
+          consentVersion:  '1.0',
+        },
+        consentComplete: true,
+        consentToDataUse: Boolean(trainingEnabled), // keep legacy field in sync
+      },
+      { new: true }
+    );
+
+    res.json({ success: true, consentComplete: true, consent: user.consent });
+  } catch (err) {
+    console.error('Consent save error:', err);
+    res.status(500).json({ error: 'Failed to save consent.' });
+  }
+});
+
+app.get('/api/user/consent', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    res.json({
+      consentComplete: user?.consentComplete || false,
+      consent: user?.consent || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch consent status.' });
+  }
+});
+
 app.post('/api/emergency/contact', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);

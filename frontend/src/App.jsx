@@ -9,6 +9,7 @@ import Journal from './pages/Journal';
 import Profile from './pages/Profile';
 import Terms from './pages/Terms';
 import Onboarding from './components/Onboarding';
+import ConsentScreen from './components/ConsentScreen';
 import LandingIntro from './components/LandingIntro';
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
   const [showLandingIntro, setShowLandingIntro] = useState(false);
 
   useEffect(() => {
@@ -31,6 +33,12 @@ export default function App() {
       const onboarded = localStorage.getItem(`saathi_onboarded_${user.email}`);
       if (!onboarded) {
         setShowOnboarding(true);
+      } else {
+        // Check consent — only for registered users, not anonymous
+        const consentDone = localStorage.getItem(`saathi_consent_${user.email}`);
+        if (!consentDone) {
+          setShowConsent(true);
+        }
       }
     }
   }, [user, isAnonymous, loading]);
@@ -70,7 +78,20 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {showOnboarding && <Onboarding onComplete={() => setShowOnboarding(false)} />}
+      {showOnboarding && (
+        <Onboarding onComplete={() => {
+          setShowOnboarding(false);
+          // Show consent screen immediately after onboarding
+          const consentDone = localStorage.getItem(`saathi_consent_${user?.email}`);
+          if (!consentDone) setShowConsent(true);
+        }} />
+      )}
+      {showConsent && (
+        <ConsentScreen onComplete={() => {
+          localStorage.setItem(`saathi_consent_${user?.email}`, 'true');
+          setShowConsent(false);
+        }} />
+      )}
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Chat />} />

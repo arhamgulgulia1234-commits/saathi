@@ -25,7 +25,20 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  // Legacy field — kept for backward compat
   consentToDataUse: {
+    type: Boolean,
+    default: false,
+  },
+  // Structured consent (v1.0)
+  consent: {
+    memoryEnabled:   { type: Boolean, default: true },
+    trainingEnabled: { type: Boolean, default: false },
+    ageConfirmed:    { type: Boolean, default: false },
+    consentDate:     { type: Date },
+    consentVersion:  { type: String, default: '1.0' },
+  },
+  consentComplete: {
     type: Boolean,
     default: false,
   },
@@ -37,3 +50,4 @@ const userSchema = new mongoose.Schema({
 });
 
 export default mongoose.model('User', userSchema);
+
