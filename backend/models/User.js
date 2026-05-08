@@ -54,7 +54,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['normal', 'high'],
     default: 'normal',
-  }
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 export default mongoose.model('User', userSchema);

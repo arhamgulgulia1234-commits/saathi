@@ -295,7 +295,11 @@ app.post('/api/auth/register', async (req, res) => {
     const user = new User({ username, email, passwordHash });
     await user.save();
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
+    const token = jwt.sign(
+      { userId: user._id, isAdmin: user.isAdmin || false },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '7d' }
+    );
     res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
   } catch (err) {
     res.status(500).json({ error: 'Server error during registration.' });
@@ -311,7 +315,11 @@ app.post('/api/auth/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) return res.status(400).json({ error: 'Invalid email or password.' });
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
+    const token = jwt.sign(
+      { userId: user._id, isAdmin: user.isAdmin || false },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '7d' }
+    );
     res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
   } catch (err) {
     res.status(500).json({ error: 'Server error during login.' });
@@ -842,6 +850,128 @@ app.post('/api/emergency/contact', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Email error:', err);
     res.status(500).json({ error: 'Failed to notify emergency contact' });
+  }
+});
+
+
+// ── Admin: Training Data Pipeline ─────────────────────────────────────────────
+
+// Middleware: admin-only JWT check
+const authenticateAdmin = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Admin access required.' });
+
+  jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret', (err, decoded) => {
+    if (err) return res.status(403).json({ error: 'Invalid token.' });
+    if (!decoded.isAdmin) return res.status(403).json({ error: 'Forbidden — admin only.' });
+    req.admin = decoded;
+    next();
+  });
+};
+
+// PII scrubber — removes emails, phone numbers, URLs, and replaces common name patterns
+function scrubPII(text) {
+  if (!text) return '';
+  return text
+    // emails
+    .replace(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g, '[email]')
+    // phone numbers (Indian & international)
+    .replace(/(\+?\d[\s\-.]?){9,13}/g, '[phone]')
+    // URLs
+    .replace(/https?:\/\/[^\s]+/g, '[url]')
+    // "my name is ..." / "I am ..." / "I'm ..."
+    .replace(/\b(my name is|i am|i'm|call me)\s+[A-Z][a-z]+\b/gi, '$1 [name]')
+    // standalone capitalised names after common lead-ins (rough heuristic)
+    .replace(/\b(hi|hey|hello),?\s+([A-Z][a-z]{2,})\b/g, '$1, [name]')
+    // Aadhaar-like 12-digit numbers
+    .replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[id]');
+}
+
+app.get('/api/admin/training-data', authenticateAdmin, async (req, res) => {
+  try {
+    // 1. Find all users who opted into training
+    const consentedUsers = await User.find(
+      { 'consent.trainingEnabled': true },
+      { _id: 1 }
+    ).lean();
+
+    if (!consentedUsers.length) {
+      return res.status(200).json({ message: 'No consented users yet.', count: 0, data: [] });
+    }
+
+    const userIds = consentedUsers.map(u => u._id);
+
+    // 2. Get all conversations for those users
+    const conversations = await Conversation.find(
+      { userId: { $in: userIds } },
+      { conversationId: 1, context: 1 }
+    ).lean();
+
+    if (!conversations.length) {
+      return res.status(200).json({ message: 'No conversations found.', count: 0, data: [] });
+    }
+
+    const convIds = conversations.map(c => c.conversationId);
+    const contextMap = Object.fromEntries(conversations.map(c => [c.conversationId, c.context]));
+
+    // 3. Fetch all messages grouped by conversationId
+    const messages = await Message.find(
+      { conversationId: { $in: convIds } },
+      { conversationId: 1, role: 1, content: 1, createdAt: 1 }
+    ).sort({ conversationId: 1, createdAt: 1 }).lean();
+
+    // 4. Group messages by conversationId
+    const grouped = {};
+    for (const msg of messages) {
+      if (!grouped[msg.conversationId]) grouped[msg.conversationId] = [];
+      grouped[msg.conversationId].push(msg);
+    }
+
+    // 5. Build fine-tuning records
+    const trainingRecords = [];
+
+    for (const [convId, msgs] of Object.entries(grouped)) {
+      if (msgs.length < 2) continue; // skip trivial single-message conversations
+
+      const context = contextMap[convId];
+      const systemPrompt = context
+        ? SYSTEM_PROMPT + '\n\n' + getContextPrompt(context)
+        : SYSTEM_PROMPT;
+
+      const formattedMessages = [
+        { role: 'system', content: systemPrompt }
+      ];
+
+      for (const msg of msgs) {
+        const role = msg.role === 'assistant' ? 'assistant' : 'user';
+        formattedMessages.push({
+          role,
+          content: scrubPII(msg.content),
+        });
+      }
+
+      trainingRecords.push({ messages: formattedMessages });
+    }
+
+    // 6. Return as downloadable JSON file
+    const timestamp = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="saathi-training-${timestamp}.json"`
+    );
+    res.json({
+      generated: new Date().toISOString(),
+      totalConversations: trainingRecords.length,
+      consentedUsers: consentedUsers.length,
+      format: 'openai-chat-finetuning',
+      data: trainingRecords,
+    });
+
+  } catch (err) {
+    console.error('Training data error:', err);
+    res.status(500).json({ error: 'Failed to generate training data.' });
   }
 });
 
