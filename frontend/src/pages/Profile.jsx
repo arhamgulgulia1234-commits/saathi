@@ -91,7 +91,7 @@ export default function Profile() {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteInput !== 'delete') return;
+    if (deleteInput.trim().toLowerCase() !== 'delete') return;
     setDeleting(true);
     try {
       const res = await fetch(`${API}/api/user/account`, {
@@ -99,6 +99,8 @@ export default function Profile() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete account');
+      
       setDeleteMessage(data.message || "Everything is gone. Take care of yourself 💜");
       // Clear local storage then wait before logging out
       ['saathi_token', 'saathi_landing_seen'].forEach(k => localStorage.removeItem(k));
@@ -297,7 +299,7 @@ export default function Profile() {
                   <button
                     className="btn-danger"
                     onClick={handleDeleteAccount}
-                    disabled={deleteInput !== 'delete' || deleting}
+                    disabled={deleteInput.trim().toLowerCase() !== 'delete' || deleting}
                   >
                     {deleting ? 'Deleting…' : 'Confirm'}
                   </button>
