@@ -1550,6 +1550,46 @@ button {
   height: 100%;
   flex-shrink: 0;
   z-index: 50;
+  transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: hidden;
+}
+
+.global-sidebar.collapsed {
+  width: 0;
+  border-right: none;
+}
+
+.sidebar-toggle-btn {
+  position: fixed;
+  top: 16px;
+  left: 290px;
+  z-index: 60;
+  background: var(--bg-800);
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s, color 0.2s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.sidebar-toggle-btn:hover {
+  background: var(--bg-700);
+  color: var(--text-2);
+}
+
+.sidebar-toggle-btn.collapsed {
+  left: 16px;
+}
+
+@media (max-width: 767px) {
+  .sidebar-toggle-btn {
+    display: none;
+  }
 }
 
 .sidebar-header {

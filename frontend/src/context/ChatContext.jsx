@@ -66,16 +66,21 @@ export function ChatProvider({ children }) {
   const handleDeleteConversation = useCallback(async (e, id) => {
     e.stopPropagation();
     try {
+      console.log('Attempting to delete conversation:', id);
       const res = await fetch(`${API}/api/conversations/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${localStorage.getItem('saathi_token')}` }
       });
+      console.log('Delete response status:', res.status);
       if (res.ok) {
         setConversations(prev => prev.filter(c => c.conversationId !== id));
         if (conversationId === id) handleNewChat();
+      } else {
+        const errorData = await res.json();
+        console.error('Delete failed:', errorData);
       }
     } catch (e) {
-      console.error(e);
+      console.error('Delete network error:', e);
     }
   }, [conversationId, handleNewChat]);
 

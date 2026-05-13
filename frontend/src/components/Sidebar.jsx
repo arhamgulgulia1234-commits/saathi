@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BarChart2, Book, User as UserIcon, Edit2, Trash2, Plus, LogIn } from 'lucide-react';
+import { BarChart2, Book, User as UserIcon, Edit2, Trash2, Plus, LogIn, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useChatContext } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,6 +19,7 @@ export default function Sidebar() {
 
   const [editingId, setEditingId] = useState(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -68,8 +69,17 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="global-sidebar">
-      <div className="sidebar-header">
+    <>
+      <button 
+        className={`sidebar-toggle-btn ${isCollapsed ? 'collapsed' : ''}`}
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+      </button>
+
+      <aside className={`global-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-header">
         <div 
           className="sidebar-brand" 
           onClick={() => navigate('/')} 
@@ -190,5 +200,6 @@ export default function Sidebar() {
         </nav>
       </div>
     </aside>
+    </>
   );
 }
