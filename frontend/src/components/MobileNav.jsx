@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MessageSquare, Clock, BarChart2, Book, User as UserIcon, X, Trash2 } from 'lucide-react';
+import { MessageSquare, Clock, BarChart2, Book, User as UserIcon, X, Trash2, Edit2 } from 'lucide-react';
 import { useChatContext } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,8 +13,32 @@ export default function MobileNav() {
     conversations, 
     conversationId, 
     handleConversationClick, 
-    handleDeleteConversation 
+    handleDeleteConversation,
+    handleUpdateConversationTitle
   } = useChatContext();
+
+  const [editingId, setEditingId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editingId]);
+
+  const startEditing = (e, id, currentTitle) => {
+    e.stopPropagation();
+    setEditingId(id);
+    setEditingTitle(currentTitle || 'New conversation');
+  };
+
+  const saveEdit = (id) => {
+    if (editingTitle.trim()) {
+      handleUpdateConversationTitle(id, editingTitle);
+    }
+    setEditingId(null);
+  };
 
   const handleNavClick = (path) => {
     setShowHistory(false);
@@ -22,6 +46,7 @@ export default function MobileNav() {
   };
 
   const onConvClick = (id) => {
+    if (editingId === id) return;
     handleConversationClick(id);
     setShowHistory(false);
     if (location.pathname !== '/') navigate('/');
@@ -101,15 +126,49 @@ export default function MobileNav() {
                       className={`conversation-item ${conversationId === c.conversationId && location.pathname === '/' ? 'active' : ''}`}
                       onClick={() => onConvClick(c.conversationId)}
                     >
-                      <div className="conversation-title">{c.title || 'New conversation'}</div>
-                      <div className="conversation-actions">
-                        <button 
-                          className="conv-action-btn delete" 
-                          onClick={(e) => handleDeleteConversation(e, c.conversationId)}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                      {editingId === c.conversationId ? (
+                        <input 
+                          ref={inputRef}
+                          type="text" 
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onBlur={() => saveEdit(c.conversationId)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveEdit(c.conversationId);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ 
+                            width: '100%', 
+                            background: 'rgba(0,0,0,0.2)', 
+                            border: '1px solid var(--text-4)', 
+                            color: 'var(--text-1)', 
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '13px'
+                          }}
+                        />
+                      ) : (
+                        <>
+                          <div className="conversation-title">{c.title || 'New conversation'}</div>
+                          <div className="conversation-actions">
+                            <button 
+                              className="conv-action-btn" 
+                              title="Edit title" 
+                              onClick={(e) => startEditing(e, c.conversationId, c.title)}
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              className="conv-action-btn delete" 
+                              title="Delete chat"
+                              onClick={(e) => handleDeleteConversation(e, c.conversationId)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>

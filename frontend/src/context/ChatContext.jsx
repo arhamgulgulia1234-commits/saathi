@@ -79,6 +79,29 @@ export function ChatProvider({ children }) {
     }
   }, [conversationId, handleNewChat]);
 
+  const handleUpdateConversationTitle = useCallback(async (id, newTitle) => {
+    // Update local state immediately
+    setConversations(prev => prev.map(c => 
+      c.conversationId === id ? { ...c, title: newTitle } : c
+    ));
+
+    try {
+      const res = await fetch(`${API}/api/conversations/${id}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('saathi_token')}` 
+        },
+        body: JSON.stringify({ title: newTitle })
+      });
+      if (!res.ok) throw new Error('Failed to update title');
+    } catch (e) {
+      console.error(e);
+      // Optional: revert title on failure (or just re-fetch)
+      fetchConversations();
+    }
+  }, [fetchConversations]);
+
   const value = {
     messages,
     setMessages,
@@ -90,7 +113,8 @@ export function ChatProvider({ children }) {
     fetchConversations,
     handleNewChat,
     handleConversationClick,
-    handleDeleteConversation
+    handleDeleteConversation,
+    handleUpdateConversationTitle
   };
 
   return (

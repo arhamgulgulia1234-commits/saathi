@@ -384,6 +384,27 @@ app.post('/api/opening', optionalAuthenticateToken, async (req, res) => {
   }
 });
 
+async function generateConversationTitle(firstMessage) {
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'user',
+          content: `Generate a short 3-5 word title for a conversation that starts with this message: "${firstMessage}". 
+          Return ONLY the title, nothing else. No quotes. No punctuation at the end.
+          Examples: "Exam stress and sleep", "Feeling lost lately", "Family pressure building up", "Late night overthinking"`
+        }
+      ],
+      max_tokens: 20,
+      temperature: 0.7
+    });
+    return completion.choices[0].message.content.trim();
+  } catch (err) {
+    return firstMessage.substring(0, 40) + (firstMessage.length > 40 ? '...' : '');
+  }
+}
+
 app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) => {
   try {
     const { messages, context } = req.body;
@@ -458,23 +479,28 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
         if (memoryEnabled) {
           // conversationId: use one from req body, or generate fresh
           const conversationId = req.body.conversationId || randomUUID();
-
-          const generatedTitle = lastUserMessage.content.substring(0, 40) + (lastUserMessage.content.length > 40 ? '...' : '');
+          
+          let generatedTitle = undefined;
           
           // Upsert conversation record
-          await Conversation.findOneAndUpdate(
+          const conv = await Conversation.findOneAndUpdate(
             { conversationId },
             {
               $setOnInsert: { 
                 userId: req.user.userId, 
                 context: context || 'other', 
                 startedAt: new Date(),
-                title: generatedTitle
+                title: 'New conversation'
               },
               $inc: { messageCount: 2 },
             },
             { upsert: true, returnDocument: 'after' }
           );
+
+          if (conv.messageCount === 2) {
+            generatedTitle = await generateConversationTitle(lastMsg.content);
+            await Conversation.updateOne({ conversationId }, { title: generatedTitle });
+          }
 
           // Save the last user message + Saathi's reply
           await Message.insertMany([
@@ -492,7 +518,7 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
             },
           ]);
 
-          return res.json({ message: fullText, isCrisis, conversationId });
+          return res.json({ message: fullText, isCrisis, conversationId, title: generatedTitle });
         }
       } catch (storageErr) {
         // Non-fatal — log and continue without storing
@@ -951,17 +977,18 @@ app.delete('/api/conversations/:conversationId', authenticateToken, async (req, 
 // Update conversation title manually
 app.patch('/api/conversations/:conversationId', authenticateToken, async (req, res) => {
   try {
-    const { conversationId } = req.params;
     const { title } = req.body;
+    if (!title || title.trim().length === 0) {
+      return res.status(400).json({ error: 'Title cannot be empty' });
+    }
     await Conversation.findOneAndUpdate(
-      { conversationId, userId: req.user.userId },
-      { title },
+      { conversationId: req.params.conversationId, userId: req.user.userId },
+      { title: title.trim().slice(0, 60) },
       { returnDocument: 'after' }
     );
     res.json({ success: true });
   } catch (err) {
-    console.error('Update title error:', err);
-    res.status(500).json({ error: 'Failed to update title.' });
+    res.status(500).json({ error: 'Failed to update title' });
   }
 });
 
