@@ -228,20 +228,33 @@ async function buildPersonalizedPrompt(userId, context) {
 
   try {
     const user = await User.findById(userId).select('memory username');
-    if (!user?.memory?.lastConversationSummary) return basePrompt;
+    
+    // Fetch last 5 conversations with data
+    const recentConversations = await Conversation.find({ userId })
+      .sort({ startedAt: -1 })
+      .limit(5)
+      .select('summary keyTopics emotionalState startedAt');
 
-    const { memory, username } = user;
+    if (!recentConversations.length && !user?.memory?.lastConversationSummary) {
+      return basePrompt;
+    }
+
+    const mergedTopics = [...new Set(recentConversations.flatMap(c => c.keyTopics || []))].filter(Boolean).join(', ');
+    const emotionalPatterns = recentConversations.map(c => c.emotionalState).filter(Boolean).join(', ');
+    const recentSummary = recentConversations[0]?.summary || user?.memory?.lastConversationSummary || '';
+
     const memoryContext = `
-MEMORY OF THIS USER — use this naturally, never dump it all at once:
-- Their name: ${username || 'unknown'}
-- What they shared last time: ${memory.lastConversationSummary}
-- Things they have mentioned: ${memory.importantThings?.filter(Boolean).join(', ') || 'nothing yet'}
-- Topics that come up for them: ${memory.keyTopics?.filter(Boolean).join(', ') || 'none yet'}
-- How they usually feel: ${memory.emotionalState || 'unknown'}
+WHAT YOU KNOW ABOUT THIS PERSON across all their conversations:
+- Name: ${user?.username || 'unknown'}
+- Recurring themes in their life: ${mergedTopics || 'none yet'}
+- Recent emotional patterns: ${emotionalPatterns || 'unknown'}
+- Most recent conversation was about: ${recentSummary}
+- Things they have shared across conversations: ${user?.memory?.importantThings?.filter(Boolean).join(', ') || 'nothing yet'}
 
-Reference this memory the way a good friend would — naturally, warmly, only when relevant.
-Never say "last time you told me" — just show you remember.
-Example: if they mentioned exams before, you might say "how did those exams end up going?" without explaining why you know about them.`;
+Use this quietly to understand who they are.
+Never reference old conversations explicitly unless they bring it up first.
+Let this knowledge inform HOW you respond, not WHAT you say.
+Example: if they always feel lonely at night, you understand the pattern without saying "you always feel lonely at night."`;
 
     return basePrompt + '\n\n' + memoryContext;
   } catch (err) {
@@ -443,11 +456,18 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
           // conversationId: use one from req body, or generate fresh
           const conversationId = req.body.conversationId || randomUUID();
 
+          const generatedTitle = lastUserMessage.content.substring(0, 40) + (lastUserMessage.content.length > 40 ? '...' : '');
+          
           // Upsert conversation record
           await Conversation.findOneAndUpdate(
             { conversationId },
             {
-              $setOnInsert: { userId: req.user.userId, context: context || 'other', startedAt: new Date() },
+              $setOnInsert: { 
+                userId: req.user.userId, 
+                context: context || 'other', 
+                startedAt: new Date(),
+                title: generatedTitle
+              },
               $inc: { messageCount: 2 },
             },
             { upsert: true, returnDocument: 'after' }
@@ -851,7 +871,6 @@ app.patch('/api/user/consent', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete account — wipe everything
 app.delete('/api/user/account', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -875,6 +894,82 @@ app.delete('/api/user/account', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Account deletion error:', err);
     res.status(500).json({ error: 'Failed to delete account.' });
+  }
+});
+
+// ── Sidebar & Conversation History Routes ───────────────────────────────────
+
+// Get all conversations for a user
+app.get('/api/conversations', authenticateToken, async (req, res) => {
+  try {
+    const conversations = await Conversation.find({ userId: req.user.userId })
+      .sort({ startedAt: -1 })
+      .select('conversationId title startedAt messageCount');
+    res.json(conversations);
+  } catch (err) {
+    console.error('Fetch conversations error:', err);
+    res.status(500).json({ error: 'Failed to fetch conversations.' });
+  }
+});
+
+// Get messages for a specific conversation
+app.get('/api/conversations/:conversationId/messages', authenticateToken, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const conversation = await Conversation.findOne({ conversationId, userId: req.user.userId });
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found.' });
+    }
+    
+    const messages = await Message.find({ conversationId })
+      .sort({ createdAt: 1 })
+      .select('role content createdAt');
+      
+    res.json({ conversation, messages });
+  } catch (err) {
+    console.error('Fetch messages error:', err);
+    res.status(500).json({ error: 'Failed to fetch messages.' });
+  }
+});
+
+// Delete a conversation
+app.delete('/api/conversations/:conversationId', authenticateToken, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    await Message.deleteMany({ conversationId, userId: req.user.userId });
+    await Conversation.findOneAndDelete({ conversationId, userId: req.user.userId });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete conversation error:', err);
+    res.status(500).json({ error: 'Failed to delete conversation.' });
+  }
+});
+
+// Update conversation title manually
+app.patch('/api/conversations/:conversationId', authenticateToken, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { title } = req.body;
+    await Conversation.findOneAndUpdate(
+      { conversationId, userId: req.user.userId },
+      { title },
+      { returnDocument: 'after' }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update title error:', err);
+    res.status(500).json({ error: 'Failed to update title.' });
+  }
+});
+
+// Clear user memory
+app.delete('/api/user/memory', authenticateToken, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user.userId, { $unset: { memory: "" } });
+    res.json({ success: true, message: "Memory cleared" });
+  } catch (err) {
+    console.error('Clear memory error:', err);
+    res.status(500).json({ error: 'Failed to clear memory.' });
   }
 });
 

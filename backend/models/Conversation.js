@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const conversationSchema = new mongoose.Schema({
   userId:               { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   conversationId:       { type: String, required: true, unique: true },
+  title:                { type: String, default: 'New conversation' },
   context:              { type: String },
   summary:              { type: String },
   keyTopics:            [String],

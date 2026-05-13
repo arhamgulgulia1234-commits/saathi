@@ -37,6 +37,10 @@ export default function Profile() {
   const [deleting, setDeleting]             = useState(false);
   const [deleteMessage, setDeleteMessage]   = useState('');
 
+  // Memory
+  const [clearingMemory, setClearingMemory] = useState(false);
+  const [memoryCleared, setMemoryCleared]   = useState(false);
+
   // Load existing consent + stats
   useEffect(() => {
     if (!user || !token) return;
@@ -110,6 +114,26 @@ export default function Profile() {
       setDeleteMessage("Something went wrong. Please try again.");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleClearMemory = async () => {
+    if (!confirm("Are you sure you want to clear Saathi's memory about you? Your past conversations will remain, but Saathi will start fresh without any background context.")) return;
+    
+    setClearingMemory(true);
+    try {
+      const res = await fetch(`${API}/api/user/memory`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to clear memory');
+      setMemoryCleared(true);
+      setTimeout(() => window.location.reload(), 2000); // Reload to fetch fresh user object
+    } catch (e) {
+      console.error(e);
+      alert('Failed to clear memory. Please try again.');
+    } finally {
+      setClearingMemory(false);
     }
   };
 
@@ -192,6 +216,51 @@ export default function Profile() {
               <span className="stat-value">{stats.totalSessions}</span>
               <span className="stat-label">Sessions</span>
             </div>
+          </div>
+        </div>
+
+        {/* Memory Section */}
+        <div className="profile-section">
+          <h3>What Saathi knows about you</h3>
+          <p className="section-desc">This is the context Saathi uses to understand you better across all your conversations. It builds up naturally as you talk.</p>
+          
+          <div className="card" style={{ padding: '24px', marginTop: '16px', background: 'var(--bg-card)' }}>
+            {!user?.memory || memoryCleared ? (
+              <p style={{ color: 'var(--text-3)', fontStyle: 'italic', margin: 0 }}>Saathi hasn't learned much about you yet. Start a conversation!</p>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {user.memory.keyTopics && user.memory.keyTopics.length > 0 && (
+                  <li><strong>Topics you talk about most:</strong> {user.memory.keyTopics.join(', ')}</li>
+                )}
+                {user.memory.emotionalState && (
+                  <li><strong>Your emotional pattern:</strong> usually {user.memory.emotionalState}</li>
+                )}
+                {user.memory.importantThings && user.memory.importantThings.length > 0 && (
+                  <li><strong>Important things shared:</strong> {user.memory.importantThings.join(', ')}</li>
+                )}
+                {user.memory.lastConversationSummary && (
+                  <li><strong>Last time:</strong> {user.memory.lastConversationSummary}</li>
+                )}
+              </ul>
+            )}
+            
+            {(user?.memory && !memoryCleared) && (
+              <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
+                <button 
+                  onClick={handleClearMemory} 
+                  disabled={clearingMemory}
+                  style={{ 
+                    background: 'transparent', border: '1px solid var(--text-4)', color: 'var(--text-2)', 
+                    padding: '8px 16px', borderRadius: 'var(--r-md)', cursor: 'pointer', fontSize: '13px',
+                    transition: 'var(--ease)'
+                  }}
+                  onMouseOver={(e) => e.target.style.borderColor = 'var(--text-3)'}
+                  onMouseOut={(e) => e.target.style.borderColor = 'var(--text-4)'}
+                >
+                  {clearingMemory ? 'Clearing...' : "Clear Saathi's memory"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
