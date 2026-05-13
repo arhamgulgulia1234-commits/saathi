@@ -255,12 +255,14 @@ export default function Chat() {
   const handleDeleteConversation = async (e, id) => {
     e.stopPropagation();
     try {
-      await fetch(`${API}/api/conversations/${id}`, {
+      const res = await fetch(`${API}/api/conversations/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${localStorage.getItem('saathi_token')}` }
       });
-      setConversations(prev => prev.filter(c => c.conversationId !== id));
-      if (conversationId === id) handleNewChat();
+      if (res.ok) {
+        setConversations(prev => prev.filter(c => c.conversationId !== id));
+        if (conversationId === id) handleNewChat();
+      }
     } catch (e) {
       console.error(e);
     }

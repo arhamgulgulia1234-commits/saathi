@@ -936,12 +936,12 @@ app.get('/api/conversations/:conversationId/messages', authenticateToken, async 
 app.delete('/api/conversations/:conversationId', authenticateToken, async (req, res) => {
   try {
     const { conversationId } = req.params;
+    await Conversation.deleteOne({ conversationId, userId: req.user.userId });
     await Message.deleteMany({ conversationId, userId: req.user.userId });
-    await Conversation.findOneAndDelete({ conversationId, userId: req.user.userId });
-    res.json({ success: true });
+    res.json({ success: true, message: 'Conversation deleted' });
   } catch (err) {
     console.error('Delete conversation error:', err);
-    res.status(500).json({ error: 'Failed to delete conversation.' });
+    res.status(500).json({ error: 'Failed to delete conversation' });
   }
 });
 
