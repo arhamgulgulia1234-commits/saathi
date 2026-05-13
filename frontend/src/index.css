@@ -1584,6 +1584,38 @@ button {
 
 .global-sidebar.collapsed .sidebar-toggle-btn-inner {
   margin: 0 auto;
+  padding: 4px;
+}
+
+.collapsed-toggle-icons {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+}
+
+.collapsed-toggle-icons .logo-icon {
+  position: absolute;
+  transition: opacity 0.2s;
+  /* Reusing .nav-logo properties */
+  box-shadow: none; /* remove glow when used as a button to keep it clean */
+}
+
+.collapsed-toggle-icons .open-icon {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.2s;
+  color: var(--text-2);
+}
+
+.sidebar-toggle-btn-inner:hover .collapsed-toggle-icons .logo-icon {
+  opacity: 0;
+}
+
+.sidebar-toggle-btn-inner:hover .collapsed-toggle-icons .open-icon {
+  opacity: 1;
 }
 
 .sidebar-header {

@@ -86,7 +86,14 @@ export default function Sidebar() {
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+          {isCollapsed ? (
+            <div className="collapsed-toggle-icons">
+              <div className="nav-logo logo-icon" aria-hidden="true">✨</div>
+              <PanelLeftOpen size={22} className="open-icon" />
+            </div>
+          ) : (
+            <PanelLeftClose size={20} />
+          )}
         </button>
       </div>
 
