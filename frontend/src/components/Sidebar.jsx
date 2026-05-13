@@ -69,28 +69,31 @@ export default function Sidebar() {
   };
 
   return (
-    <>
-      <button 
-        className={`sidebar-toggle-btn ${isCollapsed ? 'collapsed' : ''}`}
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
-        {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-      </button>
-
-      <aside className={`global-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-header">
-        <div 
-          className="sidebar-brand" 
-          onClick={() => navigate('/')} 
-          style={{ cursor: 'pointer' }}
+    <aside className={`global-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      <div className="sidebar-header">
+        {!isCollapsed && (
+          <div 
+            className="sidebar-brand" 
+            onClick={() => navigate('/')} 
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="nav-logo" aria-hidden="true">✨</div>
+            <span className="nav-title">Saathi</span>
+          </div>
+        )}
+        <button 
+          className="sidebar-toggle-btn-inner"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <div className="nav-logo" aria-hidden="true">✨</div>
-          <span className="nav-title">Saathi</span>
-        </div>
-        <button className="new-chat-btn" onClick={() => { handleNewChat(); navigate('/'); }}>
+          {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+        </button>
+      </div>
+
+      <div className="new-chat-wrapper">
+        <button className="new-chat-btn" onClick={() => { handleNewChat(); navigate('/'); }} title="New Chat">
           <Plus size={18} />
-          <span>New Chat</span>
+          {!isCollapsed && <span>New Chat</span>}
         </button>
       </div>
 
@@ -185,21 +188,20 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <nav className="sidebar-nav">
-          <button className={`sidebar-nav-btn ${location.pathname === '/mood' ? 'active' : ''}`} onClick={() => navigate('/mood')}>
+          <button className={`sidebar-nav-btn ${location.pathname === '/mood' ? 'active' : ''}`} onClick={() => navigate('/mood')} title="Mood">
             <BarChart2 size={20} />
-            <span>Mood</span>
+            {!isCollapsed && <span>Mood</span>}
           </button>
-          <button className={`sidebar-nav-btn ${location.pathname === '/journal' ? 'active' : ''}`} onClick={() => navigate('/journal')}>
+          <button className={`sidebar-nav-btn ${location.pathname === '/journal' ? 'active' : ''}`} onClick={() => navigate('/journal')} title="Journal">
             <Book size={20} />
-            <span>Journal</span>
+            {!isCollapsed && <span>Journal</span>}
           </button>
-          <button className={`sidebar-nav-btn ${location.pathname === '/profile' ? 'active' : ''}`} onClick={() => navigate('/profile')}>
+          <button className={`sidebar-nav-btn ${location.pathname === '/profile' ? 'active' : ''}`} onClick={() => navigate('/profile')} title="Profile">
             <UserIcon size={20} />
-            <span>Profile</span>
+            {!isCollapsed && <span>Profile</span>}
           </button>
         </nav>
       </div>
     </aside>
-    </>
   );
 }

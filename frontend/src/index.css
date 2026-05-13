@@ -1555,17 +1555,12 @@ button {
 }
 
 .global-sidebar.collapsed {
-  width: 0;
-  border-right: none;
+  width: 68px; /* Mini sidebar width */
 }
 
-.sidebar-toggle-btn {
-  position: fixed;
-  top: 16px;
-  left: 290px;
-  z-index: 60;
-  background: var(--bg-800);
-  border: 1px solid var(--border);
+.sidebar-toggle-btn-inner {
+  background: transparent;
+  border: none;
   color: var(--text-3);
   cursor: pointer;
   padding: 8px;
@@ -1573,34 +1568,43 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s, color 0.2s;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: var(--ease);
 }
 
-.sidebar-toggle-btn:hover {
-  background: var(--bg-700);
+.sidebar-toggle-btn-inner:hover {
+  background: rgba(255, 255, 255, 0.1);
   color: var(--text-2);
 }
 
-.sidebar-toggle-btn.collapsed {
-  left: 16px;
+.global-sidebar.collapsed .sidebar-header {
+  padding: 20px 0 16px 0;
+  align-items: center;
+  justify-content: center;
 }
 
-@media (max-width: 767px) {
-  .sidebar-toggle-btn {
-    display: none;
-  }
+.global-sidebar.collapsed .sidebar-toggle-btn-inner {
+  margin: 0 auto;
 }
 
 .sidebar-header {
   padding: 20px 16px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 20px;
+}
+
+.new-chat-wrapper {
+  padding: 0 16px 16px;
+}
+
+.global-sidebar.collapsed .new-chat-wrapper {
+  padding: 0 10px 16px;
 }
 
 .new-chat-btn {
@@ -1616,12 +1620,22 @@ button {
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center; /* Center icon when collapsed */
   gap: 8px;
   transition: var(--ease);
 }
 
+.global-sidebar.collapsed .new-chat-btn {
+  padding: 10px 0;
+}
+
 .new-chat-btn:hover {
   background: rgba(212, 132, 90, 0.25);
+}
+
+/* Hide scroll content when collapsed */
+.global-sidebar.collapsed .sidebar-scroll {
+  display: none;
 }
 
 .sidebar-scroll {
@@ -2757,6 +2771,10 @@ button {
 
 @media (min-width: 768px) {
   .top-nav {
+    display: none;
+  }
+  
+  .saathi-nav .nav-brand {
     display: none;
   }
 }
