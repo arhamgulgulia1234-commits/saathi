@@ -2673,4 +2673,50 @@ button {
   margin-top: 12px;
 }
 
+/* =============================================
+   TOP NAV (Secondary Pages)
+   ============================================= */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  background: var(--bg-800);
+  border-bottom: 1px solid #2A2320;
+  flex-shrink: 0;
+  width: 100%;
+}
 
+.top-nav-brand {
+  background: none;
+  border: none;
+  color: var(--terra-500);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-left: -8px;
+  border-radius: var(--r-sm);
+  transition: var(--ease);
+}
+
+.top-nav-brand:hover {
+  background: rgba(212, 132, 90, 0.1);
+}
+
+.top-nav-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.top-nav-spacer {
+  width: 65px; /* Matches the width of the brand button to keep title centered */
+}
+
+@media (min-width: 768px) {
+  .top-nav {
+    display: none;
+  }
+}

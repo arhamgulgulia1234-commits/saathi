@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import TopNav from '../components/TopNav';
 
 export default function Dashboard() {
   const { user, token, isAnonymous } = useAuth();
@@ -111,6 +112,7 @@ export default function Dashboard() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      <TopNav title="Mood" />
       <div className="dashboard-header">
         <h2>Your Space</h2>
         <p>Welcome back, {user?.username}.</p>

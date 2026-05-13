@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import TopNav from '../components/TopNav';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -170,6 +171,7 @@ export default function Profile() {
   if (isAnonymous) {
     return (
       <div className="profile-page anonymous-state">
+        <TopNav title="Profile" />
         <div className="card">
           <h2>Profile 👤</h2>
           <p>You are using Saathi anonymously.</p>
@@ -199,6 +201,7 @@ export default function Profile() {
 
   return (
     <motion.div className="profile-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <TopNav title="Profile" />
       {/* Header */}
       <div className="profile-header">
         <div className="profile-avatar">{user?.username?.[0]?.toUpperCase() || 'U'}</div>

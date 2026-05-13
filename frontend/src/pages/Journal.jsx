@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import nacl from 'tweetnacl';
 import naclUtil from 'tweetnacl-util';
+import TopNav from '../components/TopNav';
 
 export default function Journal() {
   const { user, token, isAnonymous } = useAuth();
@@ -130,6 +131,7 @@ export default function Journal() {
   if (isAnonymous) {
     return (
       <div className="journal-page anonymous-state">
+        <TopNav title="Journal" />
         <div className="card">
           <h2>Private Journal 📓</h2>
           <p>Your journal is fully end-to-end encrypted. Not even we can read it.</p>
@@ -139,7 +141,7 @@ export default function Journal() {
     );
   }
 
-  if (loading) return <div className="journal-page loading">Opening your journal...</div>;
+  if (loading) return <div className="journal-page loading"><TopNav title="Journal" />Opening your journal...</div>;
 
   return (
     <motion.div 
@@ -148,6 +150,7 @@ export default function Journal() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      <TopNav title="Journal" />
       <div className="journal-main">
         <div className="journal-header">
           <span className="journal-date">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span>
