@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { MessageSquare, BarChart2, Book, User as UserIcon } from 'lucide-react';
 import AuthPage from './pages/AuthPage';
 import Chat from './pages/Chat';
 import Dashboard from './pages/Dashboard';
@@ -11,6 +10,8 @@ import Terms from './pages/Terms';
 import Onboarding from './components/Onboarding';
 import ConsentScreen from './components/ConsentScreen';
 import LandingIntro from './components/LandingIntro';
+import Sidebar from './components/Sidebar';
+import MobileNav from './components/MobileNav';
 
 export default function App() {
   const { user, isAnonymous, loading } = useAuth();
@@ -21,7 +22,6 @@ export default function App() {
   const [showLandingIntro, setShowLandingIntro] = useState(false);
 
   useEffect(() => {
-    // Check for landing intro before anything else if not logged in
     if (!user && !isAnonymous && !loading) {
       const seenLanding = localStorage.getItem('saathi_landing_seen');
       if (!seenLanding) {
@@ -34,7 +34,6 @@ export default function App() {
       if (!onboarded) {
         setShowOnboarding(true);
       } else {
-        // Check consent — only for registered users, not anonymous
         const consentDone = localStorage.getItem(`saathi_consent_${user.email}`);
         if (!consentDone) {
           setShowConsent(true);
@@ -69,19 +68,11 @@ export default function App() {
     );
   }
 
-  const tabs = [
-    { path: '/', icon: MessageSquare, label: 'Chat' },
-    { path: '/mood', icon: BarChart2, label: 'Mood' },
-    { path: '/journal', icon: Book, label: 'Journal' },
-    { path: '/profile', icon: UserIcon, label: 'Profile' }
-  ];
-
   return (
     <div className="app-container">
       {showOnboarding && (
         <Onboarding onComplete={() => {
           setShowOnboarding(false);
-          // Show consent screen immediately after onboarding
           const consentDone = localStorage.getItem(`saathi_consent_${user?.email}`);
           if (!consentDone) setShowConsent(true);
         }} />
@@ -92,6 +83,9 @@ export default function App() {
           setShowConsent(false);
         }} />
       )}
+      
+      {!isAnonymous && <Sidebar />}
+
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Chat />} />
@@ -103,23 +97,7 @@ export default function App() {
         </Routes>
       </main>
 
-      <nav className="bottom-nav">
-        {tabs.map((tab) => {
-          const isActive = location.pathname === tab.path;
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.path}
-              className={`nav-btn ${isActive ? 'active' : ''}`}
-              onClick={() => navigate(tab.path)}
-            >
-              <Icon size={24} className="nav-icon" />
-              <span className="nav-label">{tab.label}</span>
-              {isActive && <span className="nav-glow" />}
-            </button>
-          );
-        })}
-      </nav>
+      {!isAnonymous && <MobileNav />}
     </div>
   );
 }

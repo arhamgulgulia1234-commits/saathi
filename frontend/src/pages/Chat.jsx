@@ -178,11 +178,19 @@ function BreathingWidget({ onClose }) {
 
 // ─── Main Chat Component ────────────────────────────────────────────────────────
 import { useAuth } from '../context/AuthContext';
+import { useChatContext } from '../context/ChatContext';
 import ContextSelector from '../components/ContextSelector';
 
 export default function Chat() {
   const { user, isAnonymous, loading } = useAuth();
-  const [messages, setMessages] = useState([]);
+  
+  const { 
+    messages, setMessages, 
+    context, setContext,
+    conversationId, setConversationId,
+    fetchConversations
+  } = useChatContext();
+
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showCrisis, setShowCrisis] = useState(false);
@@ -195,97 +203,13 @@ export default function Chat() {
   const [showColdStart, setShowColdStart] = useState(false);
   const coldStartTimer = useRef(null);
   const initialized = useRef(false);
-  const [context, setContext] = useState(null);
   const [startingChat, setStartingChat] = useState(false);
-  const [conversationId, setConversationId] = useState(() => crypto.randomUUID()); // persists within a chat session
   const inactivityTimerRef = useRef(null); // 30-min inactivity trigger
   const INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
 
-  // Sidebar & History State
-  const [conversations, setConversations] = useState([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   const hasMessages = messages.length > 0;
 
-  const fetchConversations = useCallback(async () => {
-    if (isAnonymous || !user) return;
-    try {
-      const res = await fetch(`${API}/api/conversations`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('saathi_token')}` }
-      });
-      if (res.ok) setConversations(await res.json());
-    } catch (e) {
-      console.error('Failed to fetch conversations:', e);
-    }
-  }, [user, isAnonymous]);
-
-  useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
-
-  const handleNewChat = () => {
-    setMessages([]);
-    setContext(null);
-    setConversationId(crypto.randomUUID());
-    setIsSidebarOpen(false);
-  };
-
-  const handleConversationClick = async (id) => {
-    setIsSidebarOpen(false);
-    setContext(null);
-    setConversationId(id);
-    
-    try {
-      const res = await fetch(`${API}/api/conversations/${id}/messages`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('saathi_token')}` }
-      });
-      if (!res.ok) throw new Error('Failed to fetch messages');
-      const data = await res.json();
-      setMessages(data.messages.map(m => ({
-        id: m._id,
-        role: m.role === 'user' ? 'user' : 'model',
-        content: m.content,
-        timestamp: new Date(m.createdAt)
-      })));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleDeleteConversation = async (e, id) => {
-    e.stopPropagation();
-    try {
-      const res = await fetch(`${API}/api/conversations/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('saathi_token')}` }
-      });
-      if (res.ok) {
-        setConversations(prev => prev.filter(c => c.conversationId !== id));
-        if (conversationId === id) handleNewChat();
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const groupConversations = () => {
-    const groups = { today: [], yesterday: [], last7Days: [], last30Days: [], older: [] };
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const yesterday = today - 86400000;
-    const last7 = today - 7 * 86400000;
-    const last30 = today - 30 * 86400000;
-
-    conversations.forEach(c => {
-      const d = new Date(c.startedAt).getTime();
-      if (d >= today) groups.today.push(c);
-      else if (d >= yesterday) groups.yesterday.push(c);
-      else if (d >= last7) groups.last7Days.push(c);
-      else if (d >= last30) groups.last30Days.push(c);
-      else groups.older.push(c);
-    });
-    return groups;
-  };
+  const hasMessages = messages.length > 0;
 
   const handleContextSelect = async (selectedContext) => {
     setStartingChat(true);
@@ -529,93 +453,22 @@ export default function Chat() {
     );
   }
 
-  const groups = groupConversations();
-
   return (
-    <div className="chat-layout">
-      {/* ── Sidebar ── */}
-      {!isAnonymous && (
-        <>
+    <div className="saathi-page chat-container" style={{ flex: 1, width: '100%' }}>
+      {/* ── Top Nav ── */}
+      <nav className="saathi-nav" id="saathi-nav">
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <div 
-            className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`}
-            onClick={() => setIsSidebarOpen(false)}
-          />
-          <aside className={`chat-sidebar ${isSidebarOpen ? 'open' : ''}`}>
-            <div className="sidebar-header">
-              <button className="new-chat-btn" onClick={handleNewChat}>
-                <span>✨ New Chat</span>
-                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-              </button>
-            </div>
-            <div className="sidebar-scroll">
-              {['today', 'yesterday', 'last7Days', 'last30Days', 'older'].map(groupKey => {
-                const group = groups[groupKey];
-                if (!group || group.length === 0) return null;
-                const labels = {
-                  today: 'Today', yesterday: 'Yesterday', 
-                  last7Days: 'Previous 7 Days', last30Days: 'Previous 30 Days', older: 'Older'
-                };
-                return (
-                  <div key={groupKey} className="conversation-group">
-                    <div className="conversation-group-title">{labels[groupKey]}</div>
-                    {group.map(c => (
-                      <div 
-                        key={c.conversationId}
-                        className={`conversation-item ${conversationId === c.conversationId ? 'active' : ''}`}
-                        onClick={() => handleConversationClick(c.conversationId)}
-                      >
-                        <div className="conversation-title">{c.title || 'New conversation'}</div>
-                        <button 
-                          className="delete-conv-btn" 
-                          onClick={(e) => handleDeleteConversation(e, c.conversationId)}
-                          title="Delete chat"
-                        >
-                          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          </aside>
-        </>
-      )}
-
-      {/* ── Main Chat Area ── */}
-      <div className="saathi-page chat-container" style={{ flex: 1 }}>
-        {/* ── Top Nav ── */}
-        <nav className="saathi-nav" id="saathi-nav">
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            {!isAnonymous && (
-              <button 
-                className="mobile-menu-btn" 
-                onClick={() => setIsSidebarOpen(true)}
-                aria-label="Open sidebar"
-              >
-                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none">
-                  <line x1="3" y1="12" x2="21" y2="12"></line>
-                  <line x1="3" y1="6" x2="21" y2="6"></line>
-                  <line x1="3" y1="18" x2="21" y2="18"></line>
-                </svg>
-              </button>
-            )}
-            <div 
-              className="nav-brand" 
-              onClick={() => window.location.href = '/'} 
-              style={{ cursor: 'pointer' }}
-              title="Return to Home"
-            >
-              <div className="nav-logo" aria-hidden="true">✨</div>
-              <span className="nav-title">Saathi</span>
-              <span className="nav-tagline">साथी</span>
-            </div>
+            className="nav-brand" 
+            onClick={() => window.location.href = '/'} 
+            style={{ cursor: 'pointer' }}
+            title="Return to Home"
+          >
+            <div className="nav-logo" aria-hidden="true">✨</div>
+            <span className="nav-title">Saathi</span>
+            <span className="nav-tagline">साथी</span>
           </div>
+        </div>
         <div className="nav-right">
           <div className="breathing-dot" aria-hidden="true" title="Always breathing with you" />
           <button
@@ -741,7 +594,6 @@ export default function Chat() {
       {showHandoff && <HandoffModal onClose={() => setShowHandoff(false)} />}
       {showBreathing && <BreathingWidget onClose={() => setShowBreathing(false)} />}
       
-      </div> {/* End saathi-page */}
-    </div> /* End chat-layout */
+    </div>
   );
 }
