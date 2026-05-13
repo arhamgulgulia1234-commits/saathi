@@ -42,7 +42,10 @@ const chatLimiter = rateLimit({
 });
 
 // ── Groq setup ──────────────────────────────────────────────────────────────
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+if (!process.env.GROQ_API_KEY) {
+  console.warn('⚠️  GROQ_API_KEY is not set. Chat responses will fail until it is added to backend/.env');
+}
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'missing_key' });
 
 const SYSTEM_PROMPT = `You are Saathi, a warm and emotionally present companion for people carrying emotional pain, loneliness, anxiety, or depression. You are not a therapist. You are the friend who picks up at 3am without judgment.
 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, memo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { motion } from 'framer-motion';
 import '../index.css';
 import { encryptMessage } from '../utils/encryption';
@@ -206,8 +206,6 @@ export default function Chat() {
   const [startingChat, setStartingChat] = useState(false);
   const inactivityTimerRef = useRef(null); // 30-min inactivity trigger
   const INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
-
-  const hasMessages = messages.length > 0;
 
   const hasMessages = messages.length > 0;
 
@@ -436,7 +434,7 @@ export default function Chat() {
       }
       abortRef.current = null;
     }
-  }, [messages, isTyping, user, isAnonymous, context]);
+  }, [messages, isTyping, user, isAnonymous, context, fetchConversations, conversationId]);
 
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }

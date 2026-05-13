@@ -83,8 +83,7 @@ export default function App() {
           setShowConsent(false);
         }} />
       )}
-      
-      {!isAnonymous && <Sidebar />}
+      <Sidebar />
 
       <main className="main-content">
         <Routes>
@@ -97,7 +96,7 @@ export default function App() {
         </Routes>
       </main>
 
-      {!isAnonymous && <MobileNav />}
+      <MobileNav />
     </div>
   );
 }
