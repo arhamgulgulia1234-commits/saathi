@@ -340,10 +340,12 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 app.post('/api/opening', optionalAuthenticateToken, async (req, res) => {
   try {
     const { context } = req.body;
+    const conversationId = req.body.conversationId || randomUUID();
 
     // Save conversation to DB
     const conversation = new Conversation({
       userId: req.user ? req.user.userId : undefined,
+      conversationId,
       context: context || 'other',
       messages: []
     });
@@ -358,10 +360,11 @@ app.post('/api/opening', optionalAuthenticateToken, async (req, res) => {
       other: "Hey. Whatever's on your mind — this is your space. No pressure, no judgment."
     };
 
-    res.json({ conversationId: conversation._id, message: openings[context] || openings.other });
+    const openingMessage = openings[context] || openings.other;
+    res.json({ message: openingMessage, conversationId });
   } catch (err) {
     console.error('Opening error:', err);
-    res.status(500).json({ error: 'Failed to start chat session.' });
+    res.status(500).json({ error: 'Failed to generate opening' });
   }
 });
 
@@ -447,7 +450,7 @@ app.post('/api/chat', chatLimiter, optionalAuthenticateToken, async (req, res) =
               $setOnInsert: { userId: req.user.userId, context: context || 'other', startedAt: new Date() },
               $inc: { messageCount: 2 },
             },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
           );
 
           // Save the last user message + Saathi's reply
@@ -795,7 +798,7 @@ app.post('/api/user/consent', authenticateToken, async (req, res) => {
         consentComplete: true,
         consentToDataUse: Boolean(trainingEnabled), // keep legacy field in sync
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     res.json({ success: true, consentComplete: true, consent: user.consent });

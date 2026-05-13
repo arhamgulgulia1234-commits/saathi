@@ -197,7 +197,7 @@ export default function Chat() {
   const initialized = useRef(false);
   const [context, setContext] = useState(null);
   const [startingChat, setStartingChat] = useState(false);
-  const conversationIdRef = useRef(null); // persists within a chat session
+  const [conversationId, setConversationId] = useState(() => crypto.randomUUID()); // persists within a chat session
   const inactivityTimerRef = useRef(null); // 30-min inactivity trigger
   const INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -215,7 +215,7 @@ export default function Chat() {
       const res = await fetch(`${API}/api/opening`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ context: selectedContext })
+        body: JSON.stringify({ context: selectedContext, conversationId })
       });
 
       if (!res.ok) throw new Error('Failed to start chat');
@@ -270,7 +270,7 @@ export default function Chat() {
     // sendBeacon can't send headers — so include token in body as fallback
     const payload = JSON.stringify({
       messages: messages.map(m => ({ role: m.role, content: m.content })),
-      conversationId: conversationIdRef.current,
+      conversationId,
       token,
     });
     if (navigator.sendBeacon) {
@@ -298,7 +298,7 @@ export default function Chat() {
     clearTimeout(inactivityTimerRef.current);
     inactivityTimerRef.current = setTimeout(() => {
       endConversation();
-      conversationIdRef.current = null; // reset so next message starts a new session
+      setConversationId(crypto.randomUUID()); // reset so next message starts a new session
     }, INACTIVITY_MS);
     return () => clearTimeout(inactivityTimerRef.current);
   }, [messages, endConversation]);
@@ -385,14 +385,13 @@ export default function Chat() {
       abortRef.current = ctrl;
 
       const data = await sendMessageWithRetry(
-        { messages: history, context, conversationId: conversationIdRef.current },
+        { messages: history, context, conversationId },
         ctrl.signal
       );
       
       if (data.isCrisis) setShowCrisis(true);
 
-      // Store the conversationId returned from backend for future messages
-      if (data.conversationId) conversationIdRef.current = data.conversationId;
+      // The backend will use our generated conversationId, no need to update state here
 
       setIsTyping(false);
       setMessages(prev => [...prev, {
