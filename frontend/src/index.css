@@ -2810,3 +2810,20 @@ button {
     display: none;
   }
 }
+
+/* --- PWA Mobile UI Fixes --- */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  overscroll-behavior: none;
+}
+
+button, nav {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button, a {
+  min-height: 44px;
+  min-width: 44px;
+}

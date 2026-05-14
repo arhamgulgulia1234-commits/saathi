@@ -188,9 +188,11 @@ export default function Chat() {
     messages, setMessages, 
     context, setContext,
     conversationId, setConversationId,
-    fetchConversations
+    fetchConversations,
+    installPrompt, handleInstall
   } = useChatContext();
 
+  const [pwaDismissed, setPwaDismissed] = useState(() => localStorage.getItem('saathi_pwa_dismissed') === 'true');
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showCrisis, setShowCrisis] = useState(false);
@@ -549,6 +551,19 @@ export default function Chat() {
 
       {/* ── Input Bar ── */}
       <div className="saathi-input-bar">
+        {installPrompt && !pwaDismissed && messages.filter(m => m.role === 'user').length >= 3 && (
+          <div style={{ background: 'rgba(212, 132, 90, 0.1)', padding: '12px 16px', borderRadius: 'var(--r-md)', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(212, 132, 90, 0.2)' }}>
+            <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Install Saathi on your phone for easier access 💜</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => {
+                handleInstall().then(() => {
+                  if (!installPrompt) setPwaDismissed(true);
+                });
+              }} style={{ background: 'var(--accent)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 'var(--r-sm)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Install</button>
+              <button onClick={() => { setPwaDismissed(true); localStorage.setItem('saathi_pwa_dismissed', 'true'); }} style={{ background: 'transparent', color: 'var(--text-4)', border: 'none', padding: '6px', cursor: 'pointer' }}>✕</button>
+            </div>
+          </div>
+        )}
         {hasMessages && (
           <div className="input-context-label">
             <span className="breathing-dot small" aria-hidden="true" />

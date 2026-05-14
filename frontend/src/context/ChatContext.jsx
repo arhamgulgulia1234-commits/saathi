@@ -20,6 +20,25 @@ export function ChatProvider({ children }) {
   // History state
   const [conversations, setConversations] = useState([]);
 
+  // PWA Install state
+  const [installPrompt, setInstallPrompt] = useState(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') setInstallPrompt(null);
+  };
+
   const fetchConversations = useCallback(async () => {
     if (isAnonymous || !user) return;
     try {
@@ -119,7 +138,9 @@ export function ChatProvider({ children }) {
     handleNewChat,
     handleConversationClick,
     handleDeleteConversation,
-    handleUpdateConversationTitle
+    handleUpdateConversationTitle,
+    installPrompt,
+    handleInstall
   };
 
   return (
