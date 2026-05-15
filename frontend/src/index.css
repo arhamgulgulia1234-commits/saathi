@@ -1631,11 +1631,12 @@ button {
   gap: 10px;
 }
 
-.new-chat-wrapper {
+.new-chat-wrapper, .sidebar-nav-container {
   padding: 0 16px 16px;
 }
 
-.global-sidebar.collapsed .new-chat-wrapper {
+.global-sidebar.collapsed .new-chat-wrapper, 
+.global-sidebar.collapsed .sidebar-nav-container {
   padding: 0 10px 16px;
 }
 
@@ -1764,10 +1765,9 @@ button {
   color: #ef4444;
 }
 
-.sidebar-footer {
-  padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.03);
-  margin-top: auto;
+.sidebar-nav-container {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  margin-bottom: 8px;
 }
 
 .sidebar-nav {

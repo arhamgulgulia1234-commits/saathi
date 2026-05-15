@@ -104,6 +104,23 @@ export default function Sidebar() {
         </button>
       </div>
 
+      <div className="sidebar-nav-container">
+        <nav className="sidebar-nav">
+          <button className={`sidebar-nav-btn ${location.pathname === '/mood' ? 'active' : ''}`} onClick={() => navigate('/mood')} title="Mood">
+            <BarChart2 size={20} />
+            {!isCollapsed && <span>Mood</span>}
+          </button>
+          <button className={`sidebar-nav-btn ${location.pathname === '/journal' ? 'active' : ''}`} onClick={() => navigate('/journal')} title="Journal">
+            <Book size={20} />
+            {!isCollapsed && <span>Journal</span>}
+          </button>
+          <button className={`sidebar-nav-btn ${location.pathname === '/profile' ? 'active' : ''}`} onClick={() => navigate('/profile')} title="Profile">
+            <UserIcon size={20} />
+            {!isCollapsed && <span>Profile</span>}
+          </button>
+        </nav>
+      </div>
+
       <div className="sidebar-scroll">
         {isAnonymous ? (
           <div style={{ padding: '16px 8px', color: 'var(--text-4)', fontSize: '13px', lineHeight: 1.6 }}>
@@ -193,22 +210,7 @@ export default function Sidebar() {
         )}
       </div>
 
-      <div className="sidebar-footer">
-        <nav className="sidebar-nav">
-          <button className={`sidebar-nav-btn ${location.pathname === '/mood' ? 'active' : ''}`} onClick={() => navigate('/mood')} title="Mood">
-            <BarChart2 size={20} />
-            {!isCollapsed && <span>Mood</span>}
-          </button>
-          <button className={`sidebar-nav-btn ${location.pathname === '/journal' ? 'active' : ''}`} onClick={() => navigate('/journal')} title="Journal">
-            <Book size={20} />
-            {!isCollapsed && <span>Journal</span>}
-          </button>
-          <button className={`sidebar-nav-btn ${location.pathname === '/profile' ? 'active' : ''}`} onClick={() => navigate('/profile')} title="Profile">
-            <UserIcon size={20} />
-            {!isCollapsed && <span>Profile</span>}
-          </button>
-        </nav>
-      </div>
+
     </aside>
   );
 }
