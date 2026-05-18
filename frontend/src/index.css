@@ -43,9 +43,16 @@
 
   --font: 'Plus Jakarta Sans', system-ui, sans-serif;
   --serif: 'Plus Jakarta Sans', Georgia, serif;
+
+  /* Dynamic viewport height — updated by JS on resize */
+  --vh: 1dvh;
 }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  height: 100%;
+  height: 100dvh;
+}
 
 body {
   font-family: var(--font);
@@ -53,11 +60,21 @@ body {
   color: var(--text-1);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
 }
 
 body.chat-mode {
   overflow: hidden;
   height: 100dvh;
+}
+
+/* Prevent iOS zoom on input focus */
+input, textarea, select {
+  font-size: 16px !important;
 }
 
 button {
@@ -67,9 +84,11 @@ button {
 }
 
 #root {
+  height: 100%;
   height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* =============================================
@@ -78,6 +97,7 @@ button {
 .saathi-page {
   display: flex;
   flex-direction: column;
+  height: 100%;
   height: 100dvh;
   background: var(--bg-800);
   position: relative;
@@ -274,11 +294,15 @@ button {
 .saathi-main {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   scroll-behavior: smooth;
+  /* Ensure it shrinks when keyboard opens */
+  min-height: 0;
 }
 
 .saathi-main::-webkit-scrollbar { width: 4px; }
@@ -548,8 +572,9 @@ button {
 .saathi-input-bar {
   position: relative;
   z-index: 10;
-  padding: 12px 20px max(16px, env(safe-area-inset-bottom));
-  background: rgba(8,12,26,0.7);
+  padding: 12px 20px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  background: #0D0B0A;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-top: 1px solid rgba(255,255,255,0.05);
@@ -558,6 +583,9 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  /* Stick to bottom above keyboard */
+  position: sticky;
+  bottom: 0;
 }
 
 .input-context-label {
@@ -594,7 +622,7 @@ button {
   border: none;
   outline: none;
   color: var(--text-1);
-  font-size: 15px;
+  font-size: 16px; /* 16px prevents iOS zoom */
   font-family: var(--font);
   line-height: 1.55;
   resize: none;
@@ -893,6 +921,21 @@ button {
   .modal-card { padding: 28px 20px; }
   .breathing-card { padding: 36px 20px; }
   .crisis-banner { flex-direction: column; align-items: flex-start; }
+
+  /* Chat container fills full screen minus bottom nav */
+  .saathi-page.chat-container {
+    height: 100%;
+    height: 100dvh;
+    height: calc(var(--vh, 1dvh) * 100);
+    /* Account for 64px bottom nav */
+    padding-bottom: 64px;
+    overflow: hidden;
+  }
+
+  /* Input bar always above the keyboard */
+  .saathi-input-bar {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
 }
 
 @media (min-width: 900px) {
@@ -1847,10 +1890,19 @@ button {
 @media (max-width: 767px) {
   .global-sidebar { display: none !important; }
 
-  .app-container { flex-direction: column; }
+  .app-container {
+    flex-direction: column;
+    height: 100%;
+    height: 100dvh;
+    height: calc(var(--vh, 1dvh) * 100);
+  }
 
   .main-content {
     padding-bottom: 64px; /* room for bottom nav */
+    height: 100%;
+    height: 100dvh;
+    height: calc(var(--vh, 1dvh) * 100);
+    overflow: hidden;
   }
 
   /* Bottom Nav */
@@ -2840,19 +2892,13 @@ button {
   }
 }
 
-/* --- PWA Mobile UI Fixes --- */
+/* --- PWA / Safe Area fixes --- */
 body {
   padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
   overscroll-behavior: none;
 }
 
 button, nav {
   -webkit-user-select: none;
   user-select: none;
-}
-
-button, a {
-  min-height: 44px;
-  min-width: 44px;
 }

@@ -269,6 +269,21 @@ export default function Chat() {
     return () => document.body.classList.remove('chat-mode');
   }, []);
 
+  // FIX 5 — iOS Safari keyboard: update --vh on resize/orientation change
+  useEffect(() => {
+    const setVh = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+    window.addEventListener('resize', setVh);
+    window.addEventListener('orientationchange', setVh);
+    setVh();
+    return () => {
+      window.removeEventListener('resize', setVh);
+      window.removeEventListener('orientationchange', setVh);
+    };
+  }, []);
+
   // ── End conversation helper ───────────────────────────────────────────────
   const endConversation = useCallback(() => {
     if (!user || isAnonymous) return;
@@ -339,6 +354,7 @@ export default function Chat() {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    // FIX 6 — keep keyboard open and cursor in input after sending
     setTimeout(() => textareaRef.current?.focus(), 100);
 
     setIsTyping(true);
