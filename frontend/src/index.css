@@ -63,8 +63,6 @@ body {
   height: 100%;
   height: 100dvh;
   overflow: hidden;
-  position: fixed;
-  width: 100%;
 }
 
 body.chat-mode {
@@ -570,7 +568,6 @@ button {
    INPUT BAR
    ============================================= */
 .saathi-input-bar {
-  position: relative;
   z-index: 10;
   padding: 12px 20px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
@@ -578,14 +575,11 @@ button {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-top: 1px solid rgba(255,255,255,0.05);
-  flex-shrink: 0;
+  flex-shrink: 0; /* always at bottom of flex column, never shrinks */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  /* Stick to bottom above keyboard */
-  position: sticky;
-  bottom: 0;
 }
 
 .input-context-label {
@@ -922,17 +916,13 @@ button {
   .breathing-card { padding: 36px 20px; }
   .crisis-banner { flex-direction: column; align-items: flex-start; }
 
-  /* Chat container fills full screen minus bottom nav */
+  /* Chat page fills its parent (main-content already handles bottom nav space) */
   .saathi-page.chat-container {
     height: 100%;
-    height: 100dvh;
-    height: calc(var(--vh, 1dvh) * 100);
-    /* Account for 64px bottom nav */
-    padding-bottom: 64px;
     overflow: hidden;
   }
 
-  /* Input bar always above the keyboard */
+  /* Input bar keeps safe-area padding on notched phones */
   .saathi-input-bar {
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
@@ -1892,17 +1882,17 @@ button {
 
   .app-container {
     flex-direction: column;
-    height: 100%;
     height: 100dvh;
     height: calc(var(--vh, 1dvh) * 100);
   }
 
   .main-content {
-    padding-bottom: 64px; /* room for bottom nav */
-    height: 100%;
-    height: 100dvh;
-    height: calc(var(--vh, 1dvh) * 100);
+    /* flex: 1 already in base rule — let it fill remaining space */
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
+    /* Reserve space for the fixed 64px bottom nav */
+    padding-bottom: 64px;
   }
 
   /* Bottom Nav */
